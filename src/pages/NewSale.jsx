@@ -100,7 +100,7 @@ export default function NewSale() {
   const dropStyle = { background: '#fff', border: '1.5px solid #c8d6de', borderRadius: 12, boxShadow: '0 8px 24px rgba(19,29,46,0.12)' }
 
   return (
-    <div className="p-8 fade-in max-w-7xl mx-auto">
+    <div className="p-4 md:p-8 fade-in max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: '#131d2e' }}>Nouvelle Vente</h1>
@@ -114,7 +114,7 @@ export default function NewSale() {
       </div>
 
       {/* Stepper */}
-      <div className="flex items-center mb-8">
+      <div className="flex items-center mb-6 md:mb-8">
         {steps.map((s, i) => {
           const Icon = s.icon
           const done = step > s.id
@@ -192,7 +192,7 @@ export default function NewSale() {
               <div className="mt-4 p-5 rounded-xl fade-in space-y-3"
                 style={{ background: '#f4f8fa', border: '1.5px solid #b3d4e8' }}>
                 <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#2563EB' }}>Nouveau client</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {[
                     { key: 'nom', placeholder: 'Nom complet*' },
                     { key: 'email', placeholder: 'Email*' },
@@ -302,7 +302,7 @@ export default function NewSale() {
           <div className="fade-in">
             <h2 className="text-lg font-bold mb-6" style={{ color: '#131d2e' }}>Détails de la vente</h2>
 
-            <div className="grid grid-cols-3 gap-3 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
               {[
                 { id: 'france', label: 'Vente France', desc: 'Transaction nationale' },
                 { id: 'export', label: 'Export', desc: 'UE / Hors UE' },
@@ -320,7 +320,7 @@ export default function NewSale() {
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider mb-1.5 flex items-center gap-1.5" style={{ color: '#4f6272' }}>
                   <Euro size={11} /> Prix de vente (€)*
@@ -380,7 +380,7 @@ export default function NewSale() {
             <p className="text-sm mb-5" style={{ color: '#4f6272' }}>Cochez uniquement les documents dont vous avez besoin</p>
 
             {/* Récap */}
-            <div className="grid grid-cols-3 gap-3 mb-6 p-4 rounded-xl"
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 p-4 rounded-xl"
               style={{ background: '#f4f8fa', border: '1px solid #dce4e8' }}>
               <div>
                 <p className="text-xs uppercase tracking-wide mb-0.5" style={{ color: '#8fa5b5' }}>Client</p>

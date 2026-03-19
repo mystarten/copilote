@@ -102,7 +102,7 @@ export default function Notifications({ isDemo }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 w-80 rounded-2xl shadow-2xl overflow-hidden z-[100]"
+        <div className="absolute right-0 top-12 w-[min(320px,calc(100vw-1rem))] rounded-2xl shadow-2xl overflow-hidden z-[100]"
           style={{ background: '#fff', border: '1.5px solid #c8d6de' }}>
 
           {/* Header */}

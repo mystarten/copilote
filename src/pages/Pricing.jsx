@@ -98,20 +98,20 @@ export default function Pricing() {
 
   return (
     <div className="fade-in min-h-screen" style={{ background: '#dce4e8' }}>
-      <div className="max-w-6xl mx-auto px-6 py-16">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-16">
 
         {/* ── Hero ── */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-black mb-4 leading-tight" style={{ color: '#131d2e' }}>
+          <h1 className="text-2xl md:text-4xl font-black mb-4 leading-tight" style={{ color: '#131d2e' }}>
             Finissez avec la paperasse.<br />Pour de bon.
           </h1>
-          <p className="text-lg font-medium max-w-xl mx-auto" style={{ color: '#4f6272' }}>
+          <p className="text-base md:text-lg font-medium max-w-xl mx-auto" style={{ color: '#4f6272' }}>
             Copilote génère tous vos documents PVOI en 4 minutes.
             Conforme, horodaté, sans stress.
           </p>
 
           {/* Toggle */}
-          <div className="flex items-center justify-center gap-3 mt-8">
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-8">
             <span className="text-sm font-semibold" style={{ color: annual ? '#8fa5b5' : '#131d2e' }}>Mensuel</span>
             <button
               onClick={() => setAnnual(v => !v)}
@@ -131,7 +131,7 @@ export default function Pricing() {
         </div>
 
         {/* ── Plans ── */}
-        <div className="grid grid-cols-3 gap-6 mb-16 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-12 md:mb-16 items-start">
           {PLANS.map(plan => (
             <div
               key={plan.id}
@@ -157,14 +157,14 @@ export default function Pricing() {
                 )}
               </div>
 
-              <div className="px-7 pb-7">
+              <div className="px-5 pb-5 md:px-7 md:pb-7">
                 {/* Name + subtitle */}
                 <h2 className="text-xl font-black mb-1" style={{ color: '#131d2e' }}>{plan.name}</h2>
                 <p className="text-xs font-medium mb-6" style={{ color: '#8fa5b5' }}>{plan.subtitle}</p>
 
                 {/* Price */}
                 <div className="flex items-end gap-1 mb-1">
-                  <span className="text-5xl font-black" style={{ color: '#131d2e' }}>
+                  <span className="text-3xl md:text-5xl font-black" style={{ color: '#131d2e' }}>
                     {annual ? plan.priceAnnual : plan.priceMonthly}€
                   </span>
                   <span className="text-sm mb-2.5 font-medium" style={{ color: '#8fa5b5' }}>/mois</span>
@@ -206,7 +206,7 @@ export default function Pricing() {
         </div>
 
         {/* ── Stats banner ── */}
-        <div className="rounded-2xl p-8 mb-16 grid grid-cols-4 gap-6"
+        <div className="rounded-2xl p-6 md:p-8 mb-12 md:mb-16 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6"
           style={{ background: '#131d2e', border: '1px solid #1e2d42' }}>
           {STATS.map(s => (
             <div key={s.top} className="flex flex-col items-center text-center gap-2">
@@ -222,24 +222,24 @@ export default function Pricing() {
           <h2 className="text-2xl font-black text-center mb-8" style={{ color: '#131d2e' }}>
             Comparé à la concurrence
           </h2>
-          <div className="sea-card overflow-hidden">
-            <table className="w-full">
+          <div className="sea-card overflow-x-auto">
+            <table className="w-full min-w-[500px]">
               <thead>
                 <tr style={{ background: '#dce4e8', borderBottom: '1px solid #c8d6de' }}>
-                  <th className="text-left px-6 py-3 text-xs font-bold uppercase tracking-wider" style={{ color: '#8fa5b5' }}>Critère</th>
-                  <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-center" style={{ color: '#2563EB' }}>Copilote</th>
-                  <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-center" style={{ color: '#8fa5b5' }}>Logiciel traditionnel</th>
-                  <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-center" style={{ color: '#8fa5b5' }}>Excel maison</th>
+                  <th className="text-left px-4 md:px-6 py-3 text-xs font-bold uppercase tracking-wider" style={{ color: '#8fa5b5' }}>Critère</th>
+                  <th className="px-4 md:px-6 py-3 text-xs font-bold uppercase tracking-wider text-center" style={{ color: '#2563EB' }}>Copilote</th>
+                  <th className="px-4 md:px-6 py-3 text-xs font-bold uppercase tracking-wider text-center" style={{ color: '#8fa5b5' }}>Logiciel trad.</th>
+                  <th className="px-4 md:px-6 py-3 text-xs font-bold uppercase tracking-wider text-center" style={{ color: '#8fa5b5' }}>Excel maison</th>
                 </tr>
               </thead>
               <tbody>
                 {COMPARISON.map((row, i) => (
                   <tr key={row.feature}
                     style={{ borderBottom: i < COMPARISON.length - 1 ? '1px solid #c8d6de' : 'none' }}>
-                    <td className="px-6 py-4 text-sm font-semibold" style={{ color: '#131d2e' }}>{row.feature}</td>
-                    <td className="px-6 py-4 text-sm font-bold text-center" style={{ color: '#2563EB' }}>{row.copilote}</td>
-                    <td className="px-6 py-4 text-sm text-center" style={{ color: '#4f6272' }}>{row.traditionnel}</td>
-                    <td className="px-6 py-4 text-sm text-center" style={{ color: '#8fa5b5' }}>{row.excel}</td>
+                    <td className="px-4 md:px-6 py-3 md:py-4 text-sm font-semibold" style={{ color: '#131d2e' }}>{row.feature}</td>
+                    <td className="px-4 md:px-6 py-3 md:py-4 text-sm font-bold text-center" style={{ color: '#2563EB' }}>{row.copilote}</td>
+                    <td className="px-4 md:px-6 py-3 md:py-4 text-sm text-center" style={{ color: '#4f6272' }}>{row.traditionnel}</td>
+                    <td className="px-4 md:px-6 py-3 md:py-4 text-sm text-center" style={{ color: '#8fa5b5' }}>{row.excel}</td>
                   </tr>
                 ))}
               </tbody>
@@ -273,16 +273,16 @@ export default function Pricing() {
         </div>
 
         {/* ── CTA final ── */}
-        <div className="text-center rounded-2xl p-12"
+        <div className="text-center rounded-2xl p-6 md:p-12"
           style={{ background: '#e8f4fb', border: '2px solid #b3d4e8' }}>
-          <h2 className="text-3xl font-black mb-3" style={{ color: '#131d2e' }}>
+          <h2 className="text-xl md:text-3xl font-black mb-3" style={{ color: '#131d2e' }}>
             Prêt à gagner 2h par semaine ?
           </h2>
           <p className="text-base mb-8 font-medium" style={{ color: '#4f6272' }}>
             14 jours satisfait ou remboursé. Sans engagement.
           </p>
           <button
-            className="text-white font-black text-base px-10 py-4 rounded-xl transition-all hover:opacity-90"
+            className="text-white font-black text-base px-6 md:px-10 py-3 md:py-4 rounded-xl transition-all hover:opacity-90"
             style={{ background: '#2563EB', boxShadow: '0 6px 20px rgba(37,99,235,0.35)' }}>
             Démarrer maintenant →
           </button>

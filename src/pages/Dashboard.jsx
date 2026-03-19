@@ -47,9 +47,9 @@ export default function Dashboard() {
           </p>
         </div>
         <button onClick={() => navigate('/nouvelle-vente')}
-          className="flex items-center gap-2 text-sm font-bold px-5 py-2.5 rounded-xl text-white transition-all hover:opacity-90"
+          className="flex items-center gap-1.5 text-sm font-bold px-3 md:px-5 py-2.5 rounded-xl text-white transition-all hover:opacity-90 shrink-0"
           style={{ background: '#2563EB', boxShadow: '0 4px 14px rgba(37,99,235,0.3)' }}>
-          + Nouvelle Vente
+          + <span className="hidden sm:inline">Nouvelle Vente</span><span className="sm:hidden">Vente</span>
         </button>
       </div>
 
@@ -58,13 +58,13 @@ export default function Dashboard() {
         {cards.map(card => (
           <div key={card.label}
             onClick={card.clickable ? card.onClick : undefined}
-            className={`rounded-2xl p-5 border transition-all ${card.clickable ? 'cursor-pointer hover:shadow-md' : ''}`}
+            className={`rounded-2xl p-3 md:p-5 border transition-all ${card.clickable ? 'cursor-pointer hover:shadow-md' : ''}`}
             style={{ background: card.bg, borderColor: card.border }}>
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium" style={{ color: '#4f6272' }}>{card.label}</span>
               <card.icon size={17} style={{ color: card.iconColor }} />
             </div>
-            <p className="text-[32px] font-black mb-1.5" style={{ color: '#131d2e' }}>{card.value}</p>
+            <p className="text-xl md:text-[32px] font-black mb-1.5" style={{ color: '#131d2e' }}>{card.value}</p>
             <p className="text-xs" style={card.subStyle}>{card.sub}</p>
           </div>
         ))}

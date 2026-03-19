@@ -118,7 +118,7 @@ export default function Settings({ user, onUpdateUser }) {
   const features = PLAN_FEATURES[plan]
 
   return (
-    <div className="p-8 fade-in max-w-5xl mx-auto">
+    <div className="p-4 md:p-8 fade-in max-w-5xl mx-auto">
 
       {/* Header */}
       <div className="mb-8">
@@ -126,26 +126,28 @@ export default function Settings({ user, onUpdateUser }) {
         <p className="text-sm mt-0.5" style={{ color: '#4f6272' }}>Gérez votre garage et votre compte</p>
       </div>
 
-      <div className="flex gap-6 items-start">
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-start">
 
-        {/* Sidebar */}
-        <div className="w-52 shrink-0 sea-card p-2 space-y-0.5">
-          {SECTIONS.map(s => (
-            <button key={s.id} onClick={() => setSection(s.id)}
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold text-left transition-all"
-              style={section === s.id
-                ? { background: '#e8f4fb', color: '#2563EB' }
-                : { color: '#4f6272' }}
-              onMouseEnter={e => { if (section !== s.id) e.currentTarget.style.background = '#dce4e8' }}
-              onMouseLeave={e => { if (section !== s.id) e.currentTarget.style.background = 'transparent' }}>
-              <s.icon size={15} />
-              {s.label}
-            </button>
-          ))}
+        {/* Sidebar — horizontal tabs on mobile, vertical list on desktop */}
+        <div className="w-full md:w-52 md:shrink-0 sea-card p-2">
+          <div className="flex md:flex-col gap-1 overflow-x-auto pb-1 md:pb-0">
+            {SECTIONS.map(s => (
+              <button key={s.id} onClick={() => setSection(s.id)}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all shrink-0"
+                style={section === s.id
+                  ? { background: '#e8f4fb', color: '#2563EB' }
+                  : { color: '#4f6272' }}
+                onMouseEnter={e => { if (section !== s.id) e.currentTarget.style.background = '#dce4e8' }}
+                onMouseLeave={e => { if (section !== s.id) e.currentTarget.style.background = 'transparent' }}>
+                <s.icon size={15} />
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Main content */}
-        <div className="flex-1 sea-card p-7 fade-in" key={section}>
+        <div className="flex-1 w-full sea-card p-4 md:p-7 fade-in" key={section}>
 
           {/* ── Mon Garage ── */}
           {section === 'garage' && (
@@ -290,7 +292,7 @@ export default function Settings({ user, onUpdateUser }) {
               {/* Plan actuel */}
               <div className="p-5 rounded-xl mb-5"
                 style={{ background: '#e8f4fb', border: '2px solid #2563EB' }}>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                   <div className="flex items-center gap-3">
                     <span className="text-xs font-black uppercase tracking-widest px-2.5 py-1 rounded-lg text-white"
                       style={{ background: planInfo.color }}>
@@ -300,7 +302,7 @@ export default function Settings({ user, onUpdateUser }) {
                   </div>
                   <span className="text-2xl font-black" style={{ color: '#2563EB' }}>{planInfo.price}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {features.map(f => (
                     <div key={f.label} className="flex items-center gap-2 text-sm">
                       {f.ok

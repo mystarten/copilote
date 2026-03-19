@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Download, FileSpreadsheet, Plus, X, Check, Car, Hash, Calendar, Euro, Building2, Pencil, TrendingUp, Package, ShoppingCart, BarChart2 } from 'lucide-react'
+import { Download, FileSpreadsheet, Plus, X, Check, Car, Hash, Calendar, Euro, Building2, Pencil, Package, ShoppingCart, BarChart2 } from 'lucide-react'
 import { useToast } from '../components/Toast'
 import { useLivreDePolice } from '../context/LivreDePoliceContext'
 
@@ -111,37 +111,37 @@ export default function LivreDePolice() {
   ]
 
   return (
-    <div className="p-8 fade-in max-w-7xl mx-auto">
+    <div className="p-4 md:p-8 fade-in max-w-7xl mx-auto">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6 md:mb-8">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: '#131d2e' }}>Livre de Police Numérique</h1>
+          <h1 className="text-xl md:text-2xl font-bold" style={{ color: '#131d2e' }}>Livre de Police Numérique</h1>
           <p className="text-sm mt-0.5" style={{ color: '#4f6272' }}>Registre horodaté — conforme aux obligations légales</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button onClick={() => showToast('Export PDF généré ✅')}
-            className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
+            className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl transition-colors"
             style={{ border: '1.5px solid #c8d6de', color: '#2d3f55', background: '#eef2f5' }}
             onMouseEnter={e => e.currentTarget.style.background = '#dce4e8'}
             onMouseLeave={e => e.currentTarget.style.background = '#eef2f5'}>
-            <Download size={14} /> Export PDF
+            <Download size={14} /> <span className="hidden sm:inline">Export PDF</span>
           </button>
           <button onClick={() => showToast('Export Excel généré ✅')}
-            className="flex items-center gap-2 text-sm font-bold px-4 py-2.5 rounded-xl text-white hover:opacity-90 transition-all"
+            className="flex items-center gap-1.5 text-sm font-bold px-3 py-2 rounded-xl text-white hover:opacity-90 transition-all"
             style={{ background: '#2d7a3a', boxShadow: '0 4px 12px rgba(45,122,58,0.2)' }}>
-            <FileSpreadsheet size={14} /> Export Excel
+            <FileSpreadsheet size={14} /> <span className="hidden sm:inline">Export Excel</span>
           </button>
           <button onClick={() => setAddDrawer(true)}
-            className="flex items-center gap-2 text-sm font-bold px-4 py-2.5 rounded-xl text-white hover:opacity-90 transition-all"
+            className="flex items-center gap-1.5 text-sm font-bold px-3 md:px-4 py-2 md:py-2.5 rounded-xl text-white hover:opacity-90 transition-all"
             style={{ background: '#2563EB', boxShadow: '0 4px 12px rgba(37,99,235,0.25)' }}>
-            <Plus size={15} /> Ajouter un véhicule
+            <Plus size={15} /> <span className="hidden sm:inline">Ajouter un véhicule</span><span className="sm:hidden">Ajouter</span>
           </button>
         </div>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
         {kpis.map(k => (
           <div key={k.label} className="rounded-2xl p-5 border flex items-center gap-4" style={{ background: k.bg, borderColor: k.border }}>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: k.color + '20' }}>
@@ -156,7 +156,7 @@ export default function LivreDePolice() {
       </div>
 
       {/* Grid de cards véhicules */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
         {entries.map(entry => (
           <div key={entry.id}
             className="sea-card sea-card-hover p-5 transition-all cursor-pointer group"
@@ -320,7 +320,7 @@ export default function LivreDePolice() {
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
 
               {/* Infos de base */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
                   { key: 'marque', label: 'Marque*', icon: Car, type: 'text', placeholder: 'BMW' },
                   { key: 'modele', label: 'Modèle*', icon: Car, type: 'text', placeholder: 'Série 3' },
