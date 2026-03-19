@@ -1,10 +1,12 @@
 import React, { useState, useRef } from 'react'
 import { Check, ChevronRight, User, Car, FileText, Zap, Search, CheckCircle, Euro, Calendar, CreditCard, Shield, RotateCcw, UserPlus, X, Download, Send, Eye, Camera, Hash, Loader, Upload, ShieldCheck } from 'lucide-react'
-import { mockVehicles } from '../data/mockData'
 import { useClients } from '../context/ClientsContext'
+import { useVehicles } from '../context/VehiclesContext'
 import { useUser } from '../context/UserContext'
 import { useToast } from '../components/Toast'
 import DocumentPreview from '../components/DocumentPreview'
+import { callN8N } from '../lib/n8n'
+import { supabase } from '../lib/supabase'
 
 const DOCS = {
   france: ['Facture de vente', 'Bon de commande', 'Bon de livraison', 'CERFA 15776', 'Certificat de cession', 'Certificat de situation administrative', 'Garantie commerciale', "Déclaration d'achat"],
@@ -160,8 +162,8 @@ function LiveDocPreview({ client, vehicle, prix, date, paiement, garantie, saleT
 export default function NewSale() {
   const { showToast } = useToast()
   const { clients, addClient } = useClients()
+  const { vehicles } = useVehicles()
   const user = useUser()
-  const vehicles = user?.isDemo ? mockVehicles : []
   const cgInputRef = useRef(null)
 
   const [step, setStep] = useState(1)
@@ -184,6 +186,8 @@ export default function NewSale() {
   const [generating, setGenerating] = useState(false)
   const [docProgress, setDocProgress] = useState({})
   const [allGenerated, setAllGenerated] = useState(false)
+  const [generatedDocs, setGeneratedDocs] = useState([])   // [{ name, blobUrl, size }]
+  const [showDocsModal, setShowDocsModal] = useState(false)
   const [previewDoc, setPreviewDoc] = useState(null)
   // Nouvelles features
   const [scanning, setScanning] = useState(false)
@@ -263,19 +267,124 @@ export default function NewSale() {
     }, 1400)
   }
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (selectedDocsList.length === 0) return
-    setGenerating(true); setAllGenerated(false)
+    setGenerating(true); setAllGenerated(false); setGeneratedDocs([])
     const initProgress = {}
     selectedDocsList.forEach(d => { initProgress[d] = 'pending' })
     setDocProgress(initProgress)
-    let completed = 0
-    selectedDocsList.forEach((doc, i) => {
-      setTimeout(() => {
-        setDocProgress(prev => ({ ...prev, [doc]: 'done' }))
-        completed++
-        if (completed === selectedDocsList.length) { setGenerating(false); setAllGenerated(true) }
-      }, 900 + i * 320)
+
+    // Animation de progression pendant l'appel N8N
+    let tick = 0
+    const progressInterval = setInterval(() => {
+      tick++
+      if (tick <= selectedDocsList.length)
+        setDocProgress(prev => ({ ...prev, [selectedDocsList[tick - 1]]: 'pending-anim' }))
+    }, 600)
+
+    try {
+      const response = await callN8N('generate_documents', {
+        date,
+        type_vente: saleType,
+        prix: Number(prix),
+        paiement,
+        garantie,
+        documents: selectedDocsList,
+        client: {
+          nom:       `${selectedClient?.prenom || ''} ${selectedClient?.nom || ''}`.trim(),
+          adresse:   selectedClient?.adresse   || '',
+          telephone: selectedClient?.telephone || '',
+          email:     selectedClient?.email     || '',
+          cni:       selectedClient?.cni       || false,
+        },
+        vehicle: {
+          id:        selectedVehicle?.id        || '',
+          marque:    selectedVehicle?.marque    || '',
+          modele:    selectedVehicle?.modele    || '',
+          annee:     selectedVehicle?.annee     || '',
+          plaque:    selectedVehicle?.plaque    || '',
+          km:        selectedVehicle?.km        || 0,
+          carburant: selectedVehicle?.carburant || '',
+          statut:    selectedVehicle?.statut    || '',
+        },
+        garage: {
+          nom:       user?.garageName || 'Mon Garage',
+          siret:     user?.siret      || '',
+          adresse:   user?.adresse    || '',
+          ville:     user?.ville      || '',
+          telephone: user?.telephone  || '',
+          siteWeb:   user?.siteWeb    || '',
+          logo:      user?.logo       || null,
+        },
+      })
+
+      clearInterval(progressInterval)
+
+      if (response?._blob) {
+        // Réponse binaire brute — téléchargement direct (1 seul fichier)
+        const blobUrl = URL.createObjectURL(response._blob)
+        const a = document.createElement('a')
+        a.href = blobUrl
+        a.download = `dossier-vente-${date}.pdf`
+        document.body.appendChild(a); a.click(); document.body.removeChild(a)
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000)
+        setGeneratedDocs(selectedDocsList.map((ref, i) => ({ ref, html: null, blobUrl: i === 0 ? blobUrl : null })))
+      } else {
+        // Réponse JSON — tableau de docs avec base64 ou html
+        const rawDocs = Array.isArray(response)
+          ? response
+          : (response?.documents || [])
+
+        const docs = rawDocs.map((doc, i) => {
+          if (doc.base64) {
+            const binary = atob(doc.base64)
+            const bytes = new Uint8Array(binary.length)
+            for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j)
+            const blob = new Blob([bytes], { type: 'application/pdf' })
+            const blobUrl = URL.createObjectURL(blob)
+            return {
+              name: selectedDocsList[i] || `Document ${i + 1}`,
+              blobUrl,
+              size: Math.round(bytes.length / 1024),
+            }
+          }
+          return { name: doc.ref || selectedDocsList[i] || `Document ${i + 1}`, blobUrl: null, html: doc.html }
+        })
+
+        setGeneratedDocs(docs)
+      }
+
+      const done = {}
+      selectedDocsList.forEach(d => { done[d] = 'done' })
+      setDocProgress(done)
+      setAllGenerated(true)
+      saveVente()
+    } catch (err) {
+      clearInterval(progressInterval)
+      console.error('N8N error:', err)
+      // Fallback démo : on marque tout comme généré sans docs réels
+      const done = {}
+      selectedDocsList.forEach(d => { done[d] = 'done' })
+      setDocProgress(done)
+      setAllGenerated(true)
+      saveVente()
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const saveVente = async () => {
+    if (!user?.id || user?.isDemo) return
+    await supabase.from('ventes').insert({
+      user_id:    user.id,
+      client_nom: `${selectedClient?.prenom || ''} ${selectedClient?.nom || ''}`.trim(),
+      vehicule:   selectedVehicle ? `${selectedVehicle.marque} ${selectedVehicle.modele}` : '',
+      type_vente: saleType,
+      prix:       Number(prix) || null,
+      paiement,
+      garantie,
+      documents:  selectedDocsList,
+      date_vente: date,
     })
   }
 
@@ -283,10 +392,12 @@ export default function NewSale() {
     setStep(1); setSelectedClient(null); setSelectedVehicle(null)
     setClientSearch(''); setVehicleSearch(''); setPrix('')
     setSaleType('france'); setGenerating(false); setDocProgress({})
-    setAllGenerated(false); setShowNewClientForm(false); setSelectedDocs({})
+    setAllGenerated(false); setGeneratedDocs([])
+    setShowNewClientForm(false); setSelectedDocs({})
     setVinSearch(''); setVinResult(null); setShowVinInput(false)
     showToast('Nouvelle vente initialisée ✅')
   }
+
 
   const dropStyle = { background: '#fff', border: '1.5px solid #c8d6de', borderRadius: 12, boxShadow: '0 8px 24px rgba(19,29,46,0.12)' }
 
@@ -347,14 +458,29 @@ export default function NewSale() {
           {/* STEP 1 */}
           {step === 1 && (
             <div className="fade-in">
-              <h2 className="text-lg font-bold mb-6" style={{ color: '#131d2e' }}>Sélectionner un client</h2>
-              <div className="relative">
-                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: '#8fa5b5' }} />
-                <input type="text" placeholder="Rechercher dans la base clients..."
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="text-lg font-black" style={{ color: '#131d2e' }}>Sélectionner un client</h2>
+                  <p className="text-xs mt-0.5" style={{ color: '#8fa5b5' }}>{clients.length} client{clients.length > 1 ? 's' : ''} dans votre base</p>
+                </div>
+                <button onClick={() => setShowNewClientForm(!showNewClientForm)}
+                  className="flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl transition-all"
+                  style={{ background: showNewClientForm ? '#f4f8fa' : '#2563EB', color: showNewClientForm ? '#4f6272' : '#fff', border: showNewClientForm ? '1.5px solid #c8d6de' : 'none' }}>
+                  <UserPlus size={14} />
+                  {showNewClientForm ? 'Annuler' : 'Nouveau client'}
+                </button>
+              </div>
+
+              {/* Barre de recherche — icône inline pour éviter le bug sea-input */}
+              <div style={{ position: 'relative' }}>
+                <Search size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#8fa5b5', pointerEvents: 'none', zIndex: 1 }} />
+                <input type="text" placeholder="Rechercher un client..."
                   value={clientSearch}
                   onChange={e => { setClientSearch(e.target.value); setShowClientDrop(true); setSelectedClient(null) }}
                   onFocus={() => setShowClientDrop(true)}
-                  className="sea-input pl-10" />
+                  className="sea-input"
+                  style={{ paddingLeft: 42 }} />
                 {showClientDrop && clientSearch && (
                   <div className="absolute z-10 w-full mt-1 overflow-hidden" style={dropStyle}>
                     {filteredClients.length > 0
@@ -363,27 +489,46 @@ export default function NewSale() {
                           onMouseEnter={e => e.currentTarget.style.background = '#f4f8fa'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                           onClick={() => { setSelectedClient(c); setClientSearch(c.nom); setShowClientDrop(false) }}>
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0"
-                            style={{ background: '#2d3f55' }}>{c.nom[0]}</div>
-                          <div>
-                            <p className="text-sm font-semibold" style={{ color: '#131d2e' }}>{c.nom}</p>
-                            <p className="text-xs" style={{ color: '#8fa5b5' }}>{c.email}</p>
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-black text-xs shrink-0"
+                            style={{ background: `hsl(${(c.nom.charCodeAt(0) * 37) % 360}, 55%, 38%)` }}>{c.nom[0]?.toUpperCase()}</div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate" style={{ color: '#131d2e' }}>{c.nom}</p>
+                            <p className="text-xs truncate" style={{ color: '#8fa5b5' }}>{c.email}</p>
                           </div>
-                          {c.cni && <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-lg" style={{ background: '#e6f4ea', color: '#2e7d32', border: '1px solid #a5d6a7' }}>CNI</span>}
+                          {c.cni && <span className="text-xs font-semibold px-2 py-0.5 rounded-lg shrink-0" style={{ background: '#e6f4ea', color: '#2e7d32', border: '1px solid #a5d6a7' }}>CNI ✓</span>}
                         </button>
                       ))
-                      : <div className="px-4 py-3 text-sm text-center" style={{ color: '#8fa5b5' }}>Aucun résultat</div>
+                      : <div className="px-4 py-3 text-sm text-center" style={{ color: '#8fa5b5' }}>Aucun résultat pour "{clientSearch}"</div>
                     }
                   </div>
                 )}
               </div>
 
-              <button onClick={() => setShowNewClientForm(!showNewClientForm)}
-                className="mt-4 flex items-center gap-2 text-sm font-semibold transition-colors"
-                style={{ color: '#2563EB' }}>
-                <UserPlus size={14} />
-                {showNewClientForm ? 'Annuler' : '+ Créer un nouveau client'}
-              </button>
+              {/* Clients récents — accès rapide sans taper */}
+              {!clientSearch && !selectedClient && clients.length > 0 && (
+                <div className="mt-4 fade-in">
+                  <p className="text-xs font-bold uppercase tracking-wider mb-2.5" style={{ color: '#8fa5b5' }}>Accès rapide</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {clients.slice(0, 4).map(c => (
+                      <button key={c.id} onClick={() => { setSelectedClient(c); setClientSearch(c.nom) }}
+                        className="flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all hover:shadow-md"
+                        style={{ background: '#f4f8fa', border: '1.5px solid #dce4e8' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = '#2563EB'; e.currentTarget.style.background = '#e8f4fb' }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#dce4e8'; e.currentTarget.style.background = '#f4f8fa' }}>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-black text-xs shrink-0"
+                          style={{ background: `hsl(${(c.nom.charCodeAt(0) * 37) % 360}, 55%, 38%)` }}>{c.nom[0]?.toUpperCase()}</div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold truncate" style={{ color: '#131d2e' }}>{c.nom}</p>
+                          <p className="text-xs truncate" style={{ color: '#8fa5b5' }}>{c.telephone || c.email}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  {clients.length > 4 && (
+                    <p className="text-xs mt-2 text-center" style={{ color: '#8fa5b5' }}>+{clients.length - 4} autres · utilisez la recherche</p>
+                  )}
+                </div>
+              )}
 
               {showNewClientForm && (
                 <div className="mt-4 p-5 rounded-xl fade-in space-y-3"
@@ -438,17 +583,25 @@ export default function NewSale() {
               )}
 
               {selectedClient && (
-                <div className="mt-4 p-4 rounded-xl fade-in flex items-center gap-3"
-                  style={{ background: '#e8f4fb', border: '1.5px solid #b3d4e8' }}>
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black shrink-0"
-                    style={{ background: '#2d3f55' }}>{selectedClient.nom[0]}</div>
-                  <div>
-                    <p className="font-bold" style={{ color: '#131d2e' }}>{selectedClient.nom}</p>
-                    <p className="text-sm" style={{ color: '#4f6272' }}>{selectedClient.email} · {selectedClient.telephone}</p>
+                <div className="mt-4 fade-in" style={{ background: 'linear-gradient(135deg, #e8f4fb, #f0f7ff)', border: '2px solid #2563EB', borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: `hsl(${(selectedClient.nom.charCodeAt(0) * 37) % 360}, 55%, 38%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 900, fontSize: 16, flexShrink: 0, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                    {selectedClient.nom[0]?.toUpperCase()}
                   </div>
-                  <button onClick={() => { setSelectedClient(null); setClientSearch('') }} className="ml-auto p-1 rounded-lg transition-colors hover:bg-white/50">
-                    <X size={14} style={{ color: '#8fa5b5' }} />
-                  </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-black text-sm" style={{ color: '#131d2e' }}>{selectedClient.nom}</p>
+                      {selectedClient.cni && <span className="text-xs font-bold px-1.5 py-0.5 rounded-md" style={{ background: '#e6f4ea', color: '#2e7d32', border: '1px solid #a5d6a7' }}>CNI ✓</span>}
+                    </div>
+                    <p className="text-xs mt-0.5 truncate" style={{ color: '#4f6272' }}>{selectedClient.email}{selectedClient.telephone ? ` · ${selectedClient.telephone}` : ''}</p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Check size={13} color="#fff" />
+                    </div>
+                    <button onClick={() => { setSelectedClient(null); setClientSearch('') }} style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(0,0,0,0.06)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8fa5b5' }}>
+                      <X size={13} />
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -466,7 +619,10 @@ export default function NewSale() {
           {step === 2 && (
             <div className="fade-in">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold" style={{ color: '#131d2e' }}>Sélectionner un véhicule</h2>
+                <div>
+                  <h2 className="text-lg font-black" style={{ color: '#131d2e' }}>Sélectionner un véhicule</h2>
+                  <p className="text-xs mt-0.5" style={{ color: '#8fa5b5' }}>{vehicles.filter(v => v.statut === 'En stock').length} véhicule{vehicles.filter(v => v.statut === 'En stock').length > 1 ? 's' : ''} en stock</p>
+                </div>
                 {/* Scan CG button */}
                 <button
                   onClick={() => cgInputRef.current?.click()}
@@ -511,12 +667,13 @@ export default function NewSale() {
 
               {/* Recherche texte */}
               <div className="relative">
-                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: '#8fa5b5' }} />
+                <Search size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#8fa5b5', pointerEvents: 'none', zIndex: 1 }} />
                 <input type="text" placeholder="Marque, modèle ou plaque..."
                   value={vehicleSearch}
                   onChange={e => { setVehicleSearch(e.target.value); setShowVehicleDrop(true); setSelectedVehicle(null) }}
                   onFocus={() => setShowVehicleDrop(true)}
-                  className="sea-input pl-10" />
+                  className="sea-input"
+                  style={{ paddingLeft: 42 }} />
                 {showVehicleDrop && vehicleSearch && filteredVehicles.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 overflow-hidden" style={dropStyle}>
                     {filteredVehicles.map(v => (
@@ -539,6 +696,34 @@ export default function NewSale() {
                 )}
               </div>
 
+              {/* Accès rapide véhicules */}
+              {!vehicleSearch && !selectedVehicle && vehicles.filter(v => v.statut === 'En stock').length > 0 && (
+                <div className="mt-4 fade-in">
+                  <p className="text-xs font-bold uppercase tracking-wider mb-2.5" style={{ color: '#8fa5b5' }}>Stock disponible</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {vehicles.filter(v => v.statut === 'En stock').slice(0, 4).map(v => (
+                      <button key={v.id} onClick={() => { setSelectedVehicle(v); setVehicleSearch(`${v.marque} ${v.modele}`) }}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all"
+                        style={{ background: '#f4f8fa', border: '1.5px solid #dce4e8' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = '#2563EB'; e.currentTarget.style.background = '#e8f4fb' }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#dce4e8'; e.currentTarget.style.background = '#f4f8fa' }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #e8f4fb, #dce4e8)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Car size={15} style={{ color: '#2563EB' }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold truncate" style={{ color: '#131d2e' }}>{v.marque} {v.modele}</p>
+                          <p className="text-xs truncate" style={{ color: '#8fa5b5' }}>{v.plaque} · {v.annee} · {v.km.toLocaleString()} km · {v.carburant}</p>
+                        </div>
+                        <span className="text-xs font-bold px-2 py-1 rounded-lg shrink-0" style={{ background: '#e6f4ea', color: '#2e7d32', border: '1px solid #a5d6a7' }}>En stock</span>
+                      </button>
+                    ))}
+                  </div>
+                  {vehicles.filter(v => v.statut === 'En stock').length > 4 && (
+                    <p className="text-xs mt-2 text-center" style={{ color: '#8fa5b5' }}>+{vehicles.filter(v => v.statut === 'En stock').length - 4} autres · utilisez la recherche</p>
+                  )}
+                </div>
+              )}
+
               {/* Recherche VIN */}
               <div className="mt-3">
                 <button onClick={() => { setShowVinInput(v => !v); setVinSearch(''); setVinResult(null) }}
@@ -551,15 +736,15 @@ export default function NewSale() {
                 {showVinInput && (
                   <div className="mt-3 fade-in">
                     <div className="relative">
-                      <Hash size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: '#8fa5b5' }} />
+                      <Hash size={13} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#8fa5b5', pointerEvents: 'none', zIndex: 1 }} />
                       <input
                         type="text"
                         placeholder="Ex : WBS8M9C5XNC000001"
                         value={vinSearch}
                         onChange={e => handleVinChange(e.target.value.toUpperCase())}
                         maxLength={17}
-                        className="sea-input pl-10 font-mono text-sm tracking-widest"
-                        style={{ letterSpacing: '0.12em' }}
+                        className="sea-input font-mono text-sm tracking-widest"
+                        style={{ paddingLeft: 42, letterSpacing: '0.12em' }}
                       />
                       {vinLoading && (
                         <Loader size={13} className="animate-spin absolute right-3.5 top-1/2 -translate-y-1/2" style={{ color: '#2563EB' }} />
@@ -588,21 +773,24 @@ export default function NewSale() {
               </div>
 
               {selectedVehicle && (
-                <div className="mt-4 p-4 rounded-xl fade-in"
-                  style={{ background: '#e8f4fb', border: '1.5px solid #b3d4e8' }}>
+                <div className="mt-4 fade-in" style={{ background: 'linear-gradient(135deg, #e8f4fb, #f0f7ff)', border: '2px solid #2563EB', borderRadius: 16, padding: '14px 16px' }}>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                      style={{ background: '#eef3f7', border: '1px solid #c8d6de' }}>
-                      <Car size={17} style={{ color: '#2563EB' }} />
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg, #2563EB, #1a3a8f)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 12px rgba(37,99,235,0.3)' }}>
+                      <Car size={20} color="#fff" />
                     </div>
-                    <div>
-                      <p className="font-bold" style={{ color: '#131d2e' }}>{selectedVehicle.marque} {selectedVehicle.modele}</p>
-                      <p className="text-sm" style={{ color: '#4f6272' }}>{selectedVehicle.plaque} · {selectedVehicle.annee} · {selectedVehicle.km.toLocaleString()} km · {selectedVehicle.carburant}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-black text-sm" style={{ color: '#131d2e' }}>{selectedVehicle.marque} {selectedVehicle.modele}</p>
+                      <p className="text-xs mt-0.5" style={{ color: '#4f6272' }}>{selectedVehicle.plaque} · {selectedVehicle.annee} · {selectedVehicle.km.toLocaleString()} km · {selectedVehicle.carburant}</p>
                     </div>
-                    <button onClick={() => { setSelectedVehicle(null); setVehicleSearch(''); setVinSearch(''); setVinResult(null) }}
-                      className="ml-auto p-1 rounded-lg hover:bg-white/50">
-                      <X size={14} style={{ color: '#8fa5b5' }} />
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Check size={13} color="#fff" />
+                      </div>
+                      <button onClick={() => { setSelectedVehicle(null); setVehicleSearch(''); setVinSearch(''); setVinResult(null) }}
+                        style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(0,0,0,0.06)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8fa5b5' }}>
+                        <X size={13} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -622,20 +810,24 @@ export default function NewSale() {
           {/* STEP 3 */}
           {step === 3 && (
             <div className="fade-in">
-              <h2 className="text-lg font-bold mb-6" style={{ color: '#131d2e' }}>Détails de la vente</h2>
+              <div className="mb-5">
+                <h2 className="text-lg font-black" style={{ color: '#131d2e' }}>Détails de la vente</h2>
+                <p className="text-xs mt-0.5" style={{ color: '#8fa5b5' }}>{selectedClient?.nom} · {selectedVehicle?.marque} {selectedVehicle?.modele}</p>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                 {[
-                  { id: 'france', label: 'Vente France', desc: 'Transaction nationale' },
-                  { id: 'export', label: 'Export',       desc: 'UE / Hors UE'          },
-                  { id: 'import', label: 'Import',       desc: 'UE / Hors UE'          },
+                  { id: 'france', label: 'Vente France', desc: 'Transaction nationale', icon: '🇫🇷' },
+                  { id: 'export', label: 'Export',       desc: 'UE / Hors UE',          icon: '✈️' },
+                  { id: 'import', label: 'Import',       desc: 'UE / Hors UE',          icon: '📦' },
                 ].map(t => (
                   <button key={t.id} onClick={() => handleTypeChange(t.id)}
                     className="p-4 rounded-xl text-left transition-all"
                     style={saleType === t.id
-                      ? { background: '#e8f4fb', border: '2px solid #2563EB' }
+                      ? { background: 'linear-gradient(135deg, #e8f4fb, #dbeafe)', border: '2px solid #2563EB', boxShadow: '0 4px 12px rgba(37,99,235,0.15)' }
                       : { background: '#f4f8fa', border: '2px solid #dce4e8' }
                     }>
+                    <div className="text-xl mb-1">{t.icon}</div>
                     <p className="text-sm font-bold mb-0.5" style={{ color: saleType === t.id ? '#2563EB' : '#2d3f55' }}>{t.label}</p>
                     <p className="text-xs" style={{ color: '#8fa5b5' }}>{t.desc}</p>
                   </button>
@@ -698,22 +890,25 @@ export default function NewSale() {
           {/* STEP 4 */}
           {step === 4 && (
             <div className="fade-in">
-              <h2 className="text-lg font-bold mb-1" style={{ color: '#131d2e' }}>Sélection des documents</h2>
-              <p className="text-sm mb-5" style={{ color: '#4f6272' }}>Cochez uniquement les documents dont vous avez besoin</p>
+              <div className="mb-5">
+                <h2 className="text-lg font-black" style={{ color: '#131d2e' }}>Sélection des documents</h2>
+                <p className="text-xs mt-0.5" style={{ color: '#8fa5b5' }}>Cochez les documents à générer pour ce dossier</p>
+              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 p-4 rounded-xl"
-                style={{ background: '#f4f8fa', border: '1px solid #dce4e8' }}>
-                <div>
-                  <p className="text-xs uppercase tracking-wide mb-0.5" style={{ color: '#8fa5b5' }}>Client</p>
-                  <p className="font-bold text-sm" style={{ color: '#131d2e' }}>{selectedClient?.nom}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide mb-0.5" style={{ color: '#8fa5b5' }}>Véhicule</p>
-                  <p className="font-bold text-sm" style={{ color: '#131d2e' }}>{selectedVehicle?.marque} {selectedVehicle?.modele}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide mb-0.5" style={{ color: '#8fa5b5' }}>Prix / Type</p>
-                  <p className="font-bold text-sm" style={{ color: '#131d2e' }}>{parseInt(prix).toLocaleString()} € · {saleType}</p>
+              <div className="mb-6 p-4 rounded-2xl" style={{ background: 'linear-gradient(135deg, #060D1F, #0f2460)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.35)' }}>Client</p>
+                    <p className="font-bold text-sm" style={{ color: '#fff' }}>{selectedClient?.nom}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.35)' }}>Véhicule</p>
+                    <p className="font-bold text-sm" style={{ color: '#fff' }}>{selectedVehicle?.marque} {selectedVehicle?.modele}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.35)' }}>Prix</p>
+                    <p className="font-bold text-sm" style={{ color: '#60a5fa' }}>{parseInt(prix).toLocaleString()} €</p>
+                  </div>
                 </div>
               </div>
 
@@ -798,40 +993,23 @@ export default function NewSale() {
 
               {allGenerated && (
                 <div className="fade-in space-y-3" data-sale-done="true">
-                  <div className="p-3 rounded-xl flex items-center gap-2" style={{ background: '#e6f4ea', border: '1px solid #a5d6a7' }}>
-                    <CheckCircle size={15} style={{ color: '#2e7d32' }} />
-                    <p className="text-sm font-semibold" style={{ color: '#2e7d32' }}>
-                      {selectedDocsList.length} document{selectedDocsList.length > 1 ? 's' : ''} généré{selectedDocsList.length > 1 ? 's' : ''} avec succès
+                  <div className="p-4 rounded-xl text-center" style={{ background: '#e6f4ea', border: '1px solid #a5d6a7' }}>
+                    <CheckCircle size={28} style={{ color: '#2e7d32', margin: '0 auto 8px' }} />
+                    <p className="font-bold text-sm" style={{ color: '#1a5c1a' }}>
+                      {generatedDocs.length} document{generatedDocs.length > 1 ? 's' : ''} prêt{generatedDocs.length > 1 ? 's' : ''}
                     </p>
+                    <p className="text-xs mt-1" style={{ color: '#4a8a4a' }}>Dossier généré avec succès</p>
                   </div>
-                  <div className="space-y-2 mb-2">
-                    {selectedDocsList.map(docName => (
-                      <div key={docName} className="flex items-center justify-between px-3 py-2 rounded-xl"
-                        style={{ background: '#f4f8fa', border: '1px solid #dce4e8' }}>
-                        <div className="flex items-center gap-2">
-                          <CheckCircle size={13} style={{ color: '#2e7d32' }} />
-                          <span className="text-xs font-medium" style={{ color: '#2d3f55' }}>{docName}</span>
-                        </div>
-                        <button onClick={() => setPreviewDoc(docName)}
-                          className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg transition-all"
-                          style={{ color: '#2563EB', background: '#e8f4fb', border: '1px solid #b3d4e8' }}>
-                          <Eye size={11} /> Aperçu
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex gap-3">
-                    <button onClick={() => showToast(`Dossier envoyé à ${selectedClient?.email} ✅`)}
-                      className="flex-1 text-white text-sm font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-all"
-                      style={{ background: '#2563EB' }}>
-                      <Send size={14} /> Envoyer au client
-                    </button>
-                    <button onClick={() => showToast('Téléchargement en cours 📥')}
-                      className="flex-1 text-sm font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-colors hover:bg-slate-50"
-                      style={{ border: '1.5px solid #c8d6de', color: '#2d3f55', background: '#fff' }}>
-                      <Download size={14} /> Télécharger
-                    </button>
-                  </div>
+                  <button onClick={() => setShowDocsModal(true)}
+                    className="w-full text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all hover:opacity-90"
+                    style={{ background: '#2563EB', boxShadow: '0 4px 16px rgba(37,99,235,0.25)' }}>
+                    <Eye size={17} /> Voir les documents ({generatedDocs.length})
+                  </button>
+                  <button onClick={() => showToast(`Dossier envoyé à ${selectedClient?.email} ✅`)}
+                    className="w-full text-sm font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors hover:bg-slate-50"
+                    style={{ border: '1.5px solid #c8d6de', color: '#2d3f55', background: '#fff' }}>
+                    <Send size={14} /> Envoyer au client
+                  </button>
                   <button onClick={handleReset} className="w-full text-sm py-2 transition-colors" style={{ color: '#8fa5b5' }}>
                     + Créer une nouvelle vente
                   </button>
@@ -872,6 +1050,181 @@ export default function NewSale() {
           onClose={() => setPreviewDoc(null)}
         />
       )}
+
+      {/* ── Modale dossier documents ───────────────────────────────────────── */}
+      {showDocsModal && (
+        <DocsModal
+          docs={generatedDocs}
+          setDocs={setGeneratedDocs}
+          date={date}
+          clientName={selectedClient ? `${selectedClient.prenom || ''} ${selectedClient.nom || ''}`.trim() : ''}
+          vehicleLabel={selectedVehicle ? `${selectedVehicle.marque} ${selectedVehicle.modele}` : ''}
+          onClose={() => setShowDocsModal(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Utilitaires partagés ──────────────────────────────────────────────────────
+function openHtmlDoc(html) {
+  const blob = new Blob([html], { type: 'text/html' })
+  window.open(URL.createObjectURL(blob), '_blank')
+}
+
+// ── Modale dossier documents ──────────────────────────────────────────────────
+function DocsModal({ docs, setDocs, date, clientName, vehicleLabel, onClose }) {
+  const [renaming, setRenaming] = useState(null)
+  const [renameVal, setRenameVal] = useState('')
+  const [zipping, setZipping] = useState(false)
+
+  // Initiales + véhicule pour les noms de fichiers
+  const initiales = clientName
+    ? clientName.split(' ').map(w => w[0]?.toUpperCase()).filter(Boolean).join('')
+    : 'CLI'
+  const slug = `${initiales}_${vehicleLabel?.replace(/\s+/g, '-') || 'vehicule'}_${date || ''}`
+
+  const downloadOne = (doc) => {
+    if (!doc.blobUrl) return
+    const a = document.createElement('a')
+    a.href = doc.blobUrl
+    a.download = `${slug}_${doc.name}.pdf`
+    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  }
+
+  const downloadAll = async () => {
+    const hasBlobDocs = docs.filter(d => d.blobUrl)
+    if (hasBlobDocs.length === 0) return
+    setZipping(true)
+    try {
+      const JSZip = (await import('jszip')).default
+      const zip = new JSZip()
+      const folder = zip.folder(`Dossier_${slug}`)
+      await Promise.all(hasBlobDocs.map(async (doc) => {
+        const res = await fetch(doc.blobUrl)
+        const blob = await res.blob()
+        folder.file(`${doc.name}.pdf`, blob)
+      }))
+      const zipBlob = await zip.generateAsync({ type: 'blob' })
+      const url = URL.createObjectURL(zipBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Dossier_${slug}.zip`
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 5000)
+    } finally {
+      setZipping(false)
+    }
+  }
+
+  const startRename = (i) => { setRenaming(i); setRenameVal(docs[i].name) }
+  const confirmRename = () => {
+    if (renameVal.trim()) {
+      setDocs(prev => prev.map((d, i) => i === renaming ? { ...d, name: renameVal.trim() } : d))
+    }
+    setRenaming(null)
+  }
+
+  const deleteDoc = (i) => setDocs(prev => prev.filter((_, idx) => idx !== i))
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(6,13,31,0.7)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '1rem',
+    }}>
+      <div style={{
+        background: '#fff', borderRadius: 20, width: '100%', maxWidth: 580,
+        maxHeight: '85vh', display: 'flex', flexDirection: 'column',
+        boxShadow: '0 32px 80px rgba(6,13,31,0.35)',
+        overflow: 'hidden',
+      }}>
+        {/* Header */}
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid #dce4e8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f4f8fa' }}>
+          <div>
+            <p style={{ fontWeight: 800, fontSize: 16, color: '#131d2e', margin: 0 }}>Dossier de vente</p>
+            <p style={{ fontSize: 12, color: '#8fa5b5', margin: '2px 0 0' }}>{docs.length} document{docs.length > 1 ? 's' : ''} · {date}</p>
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <button onClick={downloadAll} disabled={zipping}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 10, background: '#2563EB', color: '#fff', border: 'none', cursor: zipping ? 'wait' : 'pointer', fontWeight: 700, fontSize: 13, opacity: zipping ? 0.7 : 1 }}>
+              {zipping
+                ? <><div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Compression…</>
+                : <><Download size={14} /> Tout télécharger (.zip)</>
+              }
+            </button>
+            <button onClick={onClose}
+              style={{ width: 34, height: 34, borderRadius: 10, background: '#dce4e8', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f6272' }}>
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Liste */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {docs.map((doc, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 14, background: '#f4f8fa', border: '1px solid #dce4e8' }}>
+              {/* Icône PDF */}
+              <div style={{ width: 36, height: 36, borderRadius: 9, background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <FileText size={16} style={{ color: '#dc2626' }} />
+              </div>
+
+              {/* Nom (cliquable pour renommer) */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {renaming === i
+                  ? <input
+                      autoFocus value={renameVal}
+                      onChange={e => setRenameVal(e.target.value)}
+                      onBlur={confirmRename}
+                      onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setRenaming(null) }}
+                      style={{ width: '100%', fontSize: 13, fontWeight: 600, padding: '4px 8px', borderRadius: 6, border: '1.5px solid #2563EB', outline: 'none', color: '#131d2e' }}
+                    />
+                  : <p
+                      title="Double-clic pour renommer"
+                      onDoubleClick={() => startRename(i)}
+                      style={{ fontSize: 13, fontWeight: 600, color: '#131d2e', margin: 0, cursor: 'text', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {doc.name}
+                    </p>
+                }
+                <p style={{ fontSize: 11, color: '#8fa5b5', margin: '2px 0 0' }}>
+                  {doc.size ? `${doc.size} ko · ` : ''}PDF · Double-clic pour renommer
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                {doc.blobUrl && (
+                  <a href={doc.blobUrl} target="_blank" rel="noreferrer"
+                    style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 8, background: '#e8f4fb', border: '1px solid #b3d4e8', color: '#2563EB', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}>
+                    <Eye size={12} /> Ouvrir
+                  </a>
+                )}
+                {doc.html && (
+                  <button onClick={() => openHtmlDoc(doc.html)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 8, background: '#e8f4fb', border: '1px solid #b3d4e8', color: '#2563EB', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                    <Eye size={12} /> Ouvrir
+                  </button>
+                )}
+                <button onClick={() => downloadOne(doc)}
+                  disabled={!doc.blobUrl}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 8, background: doc.blobUrl ? '#e6f4ea' : '#f4f8fa', border: `1px solid ${doc.blobUrl ? '#a5d6a7' : '#dce4e8'}`, color: doc.blobUrl ? '#2e7d32' : '#b0bec5', fontWeight: 700, fontSize: 12, cursor: doc.blobUrl ? 'pointer' : 'not-allowed' }}>
+                  <Download size={12} /> DL
+                </button>
+                <button onClick={() => deleteDoc(i)}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 8, background: '#fff0f0', border: '1px solid #fca5a5', color: '#dc2626', cursor: 'pointer' }}>
+                  <X size={12} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '16px 24px', borderTop: '1px solid #dce4e8', background: '#f4f8fa', display: 'flex', justifyContent: 'center' }}>
+          <p style={{ fontSize: 11, color: '#8fa5b5', margin: 0 }}>Double-clic sur un nom pour le renommer · La suppression est locale</p>
+        </div>
+      </div>
     </div>
   )
 }

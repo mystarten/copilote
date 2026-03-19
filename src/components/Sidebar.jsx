@@ -1,6 +1,7 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, PlusCircle, BookOpen, Shield, LogOut, User } from 'lucide-react'
+import { LayoutDashboard, PlusCircle, BookOpen, LogOut, User } from 'lucide-react'
+import LogoShield from './LogoShield'
 
 const navItems = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
@@ -13,9 +14,7 @@ export default function Sidebar() {
     <div className="w-60 min-h-screen bg-[#0F172A] flex flex-col shrink-0">
       <div className="p-5 border-b border-slate-700">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Shield size={18} className="text-white" />
-          </div>
+          <LogoShield size={36} glow tilt />
           <div>
             <p className="text-white font-bold text-sm">Copilote PVOI</p>
             <p className="text-slate-400 text-xs">Admin Auto</p>

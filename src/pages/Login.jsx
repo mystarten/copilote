@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
-import { Shield, Eye, EyeOff, ArrowRight } from 'lucide-react'
+import { Eye, EyeOff, ArrowRight } from 'lucide-react'
 import { supabase, authError } from '../lib/supabase'
+import LogoShield from '../components/LogoShield'
 
 const PILLS = [
   'PVOI en 4 minutes',
@@ -15,14 +16,7 @@ const PILLS = [
 function Logo({ dark = false }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-      <div style={{
-        width: 36, height: 36, borderRadius: 10,
-        background: dark ? '#2563EB' : 'rgba(255,255,255,0.15)',
-        border: dark ? 'none' : '1px solid rgba(255,255,255,0.2)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-      }}>
-        <Shield size={18} color="#fff" />
-      </div>
+      <LogoShield size={36} glow tilt />
       <div>
         <div style={{ fontWeight: 900, fontSize: 15, letterSpacing: '0.08em', lineHeight: 1, color: dark ? '#131d2e' : '#fff' }}>
           COPILOTE
@@ -45,13 +39,7 @@ function BrandPanel({ isLogin }) {
     }}>
       {/* Logo centré grand */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2.5rem' }}>
-        <div style={{
-          width: 56, height: 56, borderRadius: 16,
-          background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <Shield size={26} color="#fff" />
-        </div>
+        <LogoShield size={56} glow tilt float />
         <div style={{ textAlign: 'left' }}>
           <div style={{ fontWeight: 300, fontSize: 28, letterSpacing: '0.06em', lineHeight: 1, color: 'rgba(255,255,255,0.85)' }}>COPILOTE</div>
           <div style={{ fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', opacity: 0.55, marginTop: 3 }}>
@@ -423,9 +411,7 @@ export default function Login({ onLogin }) {
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Shield size={20} color="#fff" />
-            </div>
+            <LogoShield size={40} glow />
             <div>
               <div style={{ fontWeight: 900, fontSize: 18, letterSpacing: '0.06em', color: '#fff' }}>COPILOTE</div>
               <div style={{ fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.55, color: '#fff' }}>Plateforme PVOI</div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Building2, User, CreditCard, Settings2, Check, Upload, X, Lock, Save } from 'lucide-react'
 import { useToast } from '../components/Toast'
 import { useNavigate } from 'react-router-dom'
+import { uploadFile } from '../lib/supabase'
 
 const SECTIONS = [
   { id: 'garage',      label: 'Mon Garage',    icon: Building2  },
@@ -78,12 +79,22 @@ export default function Settings({ user, onUpdateUser }) {
   const setG = (k, v) => setGarageState(f => ({ ...f, [k]: v }))
   const setC = (k, v) => setCompteState(f => ({ ...f, [k]: v }))
 
-  const handleLogo = (e) => {
+  const handleLogo = async (e) => {
     const file = e.target.files[0]
     if (!file) return
+    // Aperçu immédiat (base64) pendant l'upload
     const reader = new FileReader()
     reader.onload = (ev) => setG('logo', ev.target.result)
     reader.readAsDataURL(file)
+    // Upload vers Supabase Storage puis remplace par l'URL permanente
+    if (user?.id) {
+      try {
+        const url = await uploadFile(user.id, 'logo', file)
+        setG('logo', url)
+      } catch (err) {
+        console.error('Logo upload error:', err.message)
+      }
+    }
   }
 
   const toggleType = (type) => setPrefsState(f => ({

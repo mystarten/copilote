@@ -41,6 +41,25 @@ export function userToDb(user) {
   }
 }
 
+// ── Upload fichier vers Storage ───────────────────────────────────────────────
+// Retourne l'URL publique du fichier uploadé
+export async function uploadFile(userId, path, file) {
+  const ext  = file.name.split('.').pop()
+  const fullPath = `${userId}/${path}.${ext}`
+
+  const { error } = await supabase.storage
+    .from('copilote-files')
+    .upload(fullPath, file, { upsert: true })
+
+  if (error) throw error
+
+  const { data } = supabase.storage
+    .from('copilote-files')
+    .getPublicUrl(fullPath)
+
+  return data.publicUrl
+}
+
 // Messages d'erreur Supabase → français
 export function authError(msg = '') {
   if (msg.includes('Invalid login credentials'))  return 'Email ou mot de passe incorrect.'
