@@ -16,6 +16,7 @@ import Login from './pages/Login'
 import Onboarding from './pages/Onboarding'
 import { ToastProvider } from './components/Toast'
 import { ClientsProvider } from './context/ClientsContext'
+import { LivreDePoliceProvider } from './context/LivreDePoliceContext'
 
 // Compte démo — voit les données pré-remplies
 const DEMO_EMAIL = 'demo@copilote.fr'
@@ -141,6 +142,7 @@ export default function App() {
     <ToastProvider>
       <UserProvider value={user}>
         <ClientsProvider isDemo={user.isDemo}>
+          <LivreDePoliceProvider isDemo={user.isDemo}>
           {showTour && <Tour user={user} onComplete={handleTourComplete} />}
           <Layout user={user} onLogout={handleLogout}>
             <Routes>
@@ -154,6 +156,7 @@ export default function App() {
               <Route path="/settings"        element={<Settings user={user} onUpdateUser={handleUpdateUser} />} />
             </Routes>
           </Layout>
+          </LivreDePoliceProvider>
         </ClientsProvider>
       </UserProvider>
     </ToastProvider>

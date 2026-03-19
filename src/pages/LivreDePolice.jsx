@@ -1,8 +1,7 @@
 import React, { useState } from 'react'
 import { Download, FileSpreadsheet, Plus, X, Check, Car, Hash, Calendar, Euro, Building2, Pencil, TrendingUp, Package, ShoppingCart, BarChart2 } from 'lucide-react'
-import { mockLivreDePolice } from '../data/mockData'
 import { useToast } from '../components/Toast'
-import { useUser } from '../context/UserContext'
+import { useLivreDePolice } from '../context/LivreDePoliceContext'
 
 const emptyVehicle = {
   marque: '', modele: '', plaque: '', vin: '',
@@ -12,8 +11,7 @@ const emptyVehicle = {
 
 export default function LivreDePolice() {
   const { showToast } = useToast()
-  const user = useUser()
-  const [entries, setEntries] = useState(user?.isDemo ? mockLivreDePolice : [])
+  const { entries, addEntry, updateEntry } = useLivreDePolice()
   const [addDrawer, setAddDrawer] = useState(false)
   const [editDrawer, setEditDrawer] = useState(null)
   const [addForm, setAddForm] = useState(emptyVehicle)
@@ -59,7 +57,7 @@ export default function LivreDePolice() {
       dateSortie: null, acquereur: null, prixCession: null,
       statut: 'stock',
     }
-    setEntries(prev => [newEntry, ...prev])
+    addEntry(newEntry)
     setAddDrawer(false); setAddForm(emptyVehicle); setErrors({})
     showToast(`${addForm.marque} ${addForm.modele} ajouté ✅`)
   }
@@ -86,8 +84,7 @@ export default function LivreDePolice() {
     if (!editForm.marque || !editForm.modele || !editForm.plaque || !editForm.prixAchat || !editForm.fournisseur) {
       showToast('Remplis les champs obligatoires', 'error'); return
     }
-    setEntries(prev => prev.map(e => e.id === editDrawer.id ? {
-      ...e,
+    updateEntry(editDrawer.id, {
       marque: editForm.marque,
       modele: editForm.modele,
       plaque: editForm.plaque.toUpperCase(),
@@ -98,7 +95,7 @@ export default function LivreDePolice() {
       acquereur: editForm.statut === 'vendu' ? editForm.acquereur || null : null,
       prixCession: editForm.statut === 'vendu' ? Number(editForm.prixCession) || null : null,
       dateSortie: editForm.statut === 'vendu' ? editForm.dateSortie || null : null,
-    } : e))
+    })
     setEditDrawer(null); setEditForm(null)
     showToast(`${editForm.marque} ${editForm.modele} mis à jour ✅`)
   }
