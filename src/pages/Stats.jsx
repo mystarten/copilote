@@ -60,24 +60,24 @@ function computeStats(entries) {
 
 // Demo hardcoded data
 const demoMonthly = [
-  { mois: 'Oct', ventes: 8,  marge: 5200  },
-  { mois: 'Nov', ventes: 11, marge: 7800  },
-  { mois: 'Déc', ventes: 7,  marge: 4100  },
-  { mois: 'Jan', ventes: 14, marge: 9600  },
-  { mois: 'Fév', ventes: 12, marge: 8300  },
-  { mois: 'Mar', ventes: 18, marge: 12400 },
+  { mois: 'Oct', ventes: 22, marge: 154200 },
+  { mois: 'Nov', ventes: 28, marge: 196400 },
+  { mois: 'Déc', ventes: 19, marge: 128600 },
+  { mois: 'Jan', ventes: 31, marge: 228800 },
+  { mois: 'Fév', ventes: 34, marge: 264600 },
+  { mois: 'Mar', ventes: 38, marge: 298400 },
 ]
 const demoTypeData = [
-  { name: 'France',  value: 58, color: '#2563EB' },
-  { name: 'Export',  value: 27, color: '#2d3f55' },
-  { name: 'Import',  value: 15, color: '#8fa5b5' },
+  { name: 'France',  value: 61, color: '#2563EB' },
+  { name: 'Export',  value: 28, color: '#2d3f55' },
+  { name: 'Import',  value: 11, color: '#8fa5b5' },
 ]
 const demoTop = [
-  { vehicule: 'BMW Série 3 2021',       marque: 'BMW',      marge: 6800, tx: '28.3' },
-  { vehicule: 'Mercedes GLC 2020',      marque: 'Mercedes', marge: 6200, tx: '26.1' },
-  { vehicule: 'Porsche Macan 2019',     marque: 'Porsche',  marge: 5900, tx: '24.7' },
-  { vehicule: 'Audi Q5 2021',           marque: 'Audi',     marge: 5400, tx: '22.5' },
-  { vehicule: 'Volkswagen Tiguan 2022', marque: 'VW',       marge: 4100, tx: '19.8' },
+  { vehicule: 'Ferrari SF90 Stradale 2024', marque: 'Ferrari',      marge: 68000, tx: '17.9' },
+  { vehicule: 'Rolls-Royce Ghost 2024',     marque: 'Rolls-Royce',  marge: 44000, tx: '17.7' },
+  { vehicule: 'Lamborghini Huracán EVO',    marque: 'Lamborghini',  marge: 36000, tx: '20.2' },
+  { vehicule: 'Porsche 911 Carrera S',      marque: 'Porsche',      marge: 22400, tx: '22.0' },
+  { vehicule: 'Aston Martin DBX707',        marque: 'Aston Martin', marge: 30400, tx: '18.1' },
 ]
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -129,10 +129,10 @@ export default function Stats() {
 
   const kpis = isDemo
     ? [
-        { label: "Chiffre d'affaires total", value: '187 400 €', icon: Euro,      color: '#2563EB', bg: '#e8f4fb', sub: '+12% vs période préc.' },
-        { label: 'Marge brute',              value: '42 300 €',  icon: TrendingUp, color: '#2e7d32', bg: '#e6f4ea', sub: '+8% vs période préc.' },
-        { label: 'Marge moy. / véhicule',    value: '4 230 €',   icon: Car,        color: '#2d3f55', bg: '#f0f4f8', sub: 'Sur 10 véhicules vendus' },
-        { label: 'Taux de marge moyen',      value: '22,5 %',    icon: Percent,    color: '#b45309', bg: '#fff8e1', sub: 'Objectif : 25%' },
+        { label: "Chiffre d'affaires total", value: '5 248 000 €', icon: Euro,      color: '#2563EB', bg: '#e8f4fb', sub: '+23% vs période préc.' },
+        { label: 'Marge brute',              value: '1 271 000 €', icon: TrendingUp, color: '#2e7d32', bg: '#e6f4ea', sub: '+19% vs période préc.' },
+        { label: 'Marge moy. / véhicule',    value: '19 554 €',    icon: Car,        color: '#2d3f55', bg: '#f0f4f8', sub: 'Sur 65 véhicules vendus' },
+        { label: 'Taux de marge moyen',      value: '24,2 %',      icon: Percent,    color: '#b45309', bg: '#fff8e1', sub: 'Objectif 25% — en approche ✓' },
       ]
     : [
         { label: "Chiffre d'affaires total", value: stats.ca > 0 ? `${stats.ca.toLocaleString()} €` : '—',          icon: Euro,      color: '#2563EB', bg: '#e8f4fb', sub: `${stats.nbVendus} vente${stats.nbVendus > 1 ? 's' : ''} enregistrée${stats.nbVendus > 1 ? 's' : ''}` },
@@ -153,7 +153,7 @@ export default function Stats() {
       </div>
 
       {/* KPI Cards — always shown */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div id="tour-stats" className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {kpis.map(kpi => {
           const Icon = kpi.icon
           return (

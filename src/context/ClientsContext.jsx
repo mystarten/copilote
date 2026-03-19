@@ -7,7 +7,7 @@ export function ClientsProvider({ children, isDemo = false }) {
   const [clients, setClients] = useState(isDemo ? initialClients : [])
 
   const addClient = (client) => {
-    const newClient = { ...client, id: Date.now(), cni: false }
+    const newClient = { ...client, id: Date.now(), cni: client.cni ?? false, cniFile: client.cniFile ?? null }
     setClients(prev => [newClient, ...prev])
     return newClient
   }

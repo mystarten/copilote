@@ -141,7 +141,7 @@ export default function LivreDePolice() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
+      <div id="tour-livre" className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
         {kpis.map(k => (
           <div key={k.label} className="rounded-2xl p-5 border flex items-center gap-4" style={{ background: k.bg, borderColor: k.border }}>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: k.color + '20' }}>

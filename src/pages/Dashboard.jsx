@@ -25,10 +25,10 @@ export default function Dashboard() {
 
   const cards = user?.isDemo
     ? [
-        { label: 'Ventes ce mois',      value: '14',    sub: '+12% vs mois dernier', subStyle: { color: '#2e7d32', fontWeight: 600 }, icon: TrendingUp,  bg: '#e8f4fb', border: '#b3d4e8', iconColor: '#2563EB' },
-        { label: 'Documents générés',   value: '87',    sub: 'Ce mois-ci',           subStyle: { color: '#8fa5b5' },                  icon: FileText,    bg: '#eef3f7', border: '#c8d6de', iconColor: '#4f6272' },
-        { label: 'Dossiers en attente', value: '3',     sub: 'Voir les dossiers →',  subStyle: { color: '#2563EB', fontWeight: 600, cursor: 'pointer' }, icon: AlertCircle, bg: '#f0f5f8', border: '#8fa5b5', iconColor: '#2d3f55', clickable: true, onClick: () => navigate('/nouvelle-vente') },
-        { label: 'Temps moyen',         value: '4 min', sub: 'Par dossier complet',  subStyle: { color: '#8fa5b5' },                  icon: Clock,       bg: '#dce4e8', border: '#8fa5b5', iconColor: '#4f6272' },
+        { label: 'Ventes ce mois',      value: '38',      sub: '+23% vs mois dernier',  subStyle: { color: '#2e7d32', fontWeight: 600 }, icon: TrendingUp,  bg: '#e8f4fb', border: '#b3d4e8', iconColor: '#2563EB' },
+        { label: 'Documents générés',   value: '247',     sub: 'Ce mois-ci',            subStyle: { color: '#8fa5b5' },                  icon: FileText,    bg: '#eef3f7', border: '#c8d6de', iconColor: '#4f6272' },
+        { label: 'Dossiers en attente', value: '5',       sub: 'Voir les dossiers →',   subStyle: { color: '#2563EB', fontWeight: 600, cursor: 'pointer' }, icon: AlertCircle, bg: '#f0f5f8', border: '#8fa5b5', iconColor: '#2d3f55', clickable: true, onClick: () => navigate('/nouvelle-vente') },
+        { label: 'Temps moyen',         value: '3 min',   sub: 'Par dossier complet',   subStyle: { color: '#8fa5b5' },                  icon: Clock,       bg: '#dce4e8', border: '#8fa5b5', iconColor: '#4f6272' },
       ]
     : [
         { label: 'Ventes ce mois',      value: String(sales.length), sub: 'Ce mois-ci',          subStyle: { color: '#8fa5b5' },                                                                    icon: TrendingUp,  bg: '#e8f4fb', border: '#b3d4e8', iconColor: '#2563EB' },
@@ -54,7 +54,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5 mb-8">
+      <div id="tour-kpis" className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5 mb-8">
         {cards.map(card => (
           <div key={card.label}
             onClick={card.clickable ? card.onClick : undefined}
