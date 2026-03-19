@@ -3,8 +3,8 @@ import { initialClients } from '../data/mockData'
 
 const ClientsContext = createContext(null)
 
-export function ClientsProvider({ children }) {
-  const [clients, setClients] = useState(initialClients)
+export function ClientsProvider({ children, isDemo = false }) {
+  const [clients, setClients] = useState(isDemo ? initialClients : [])
 
   const addClient = (client) => {
     const newClient = { ...client, id: Date.now(), cni: false }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Plus, Search, Pencil, Trash2, X, Check, User, Phone, Mail, MapPin, UserPlus } from 'lucide-react'
+import { Search, Pencil, Trash2, X, Check, User, Phone, Mail, MapPin, UserPlus } from 'lucide-react'
 import { useClients } from '../context/ClientsContext'
 import { useToast } from '../components/Toast'
 
@@ -9,109 +9,100 @@ export default function Clients() {
   const { clients, addClient, updateClient, deleteClient } = useClients()
   const { showToast } = useToast()
   const [search, setSearch] = useState('')
-  const [drawer, setDrawer] = useState(null) // null | 'add' | {client}
+  const [drawer, setDrawer] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
 
   const filtered = clients.filter(c =>
     c.nom.toLowerCase().includes(search.toLowerCase()) ||
     c.email.toLowerCase().includes(search.toLowerCase()) ||
-    c.telephone.includes(search)
+    (c.telephone || '').includes(search)
   )
 
   const openAdd = () => { setForm(emptyForm); setDrawer('add') }
-  const openEdit = (client) => { setForm({ nom: client.nom, email: client.email, telephone: client.telephone, adresse: client.adresse || '' }); setDrawer(client) }
+  const openEdit = (c) => { setForm({ nom: c.nom, email: c.email, telephone: c.telephone || '', adresse: c.adresse || '' }); setDrawer(c) }
   const closeDrawer = () => { setDrawer(null); setForm(emptyForm) }
-
   const handleSave = () => {
     if (!form.nom || !form.email) return
-    if (drawer === 'add') {
-      addClient(form)
-      showToast(`${form.nom} ajouté à la base clients ✅`)
-    } else {
-      updateClient(drawer.id, form)
-      showToast(`${form.nom} mis à jour ✅`)
-    }
+    if (drawer === 'add') { addClient(form); showToast(`${form.nom} ajouté ✅`) }
+    else { updateClient(drawer.id, form); showToast(`${form.nom} mis à jour ✅`) }
     closeDrawer()
   }
-
-  const handleDelete = (id, nom) => {
-    deleteClient(id)
-    setDeleteConfirm(null)
-    showToast(`${nom} supprimé`, 'error')
-  }
+  const handleDelete = (id, nom) => { deleteClient(id); setDeleteConfirm(null); showToast(`${nom} supprimé`, 'error') }
 
   return (
-    <div className="p-8 fade-in">
-      {/* Header */}
+    <div className="p-8 fade-in max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Base Clients</h1>
-          <p className="text-slate-500 text-sm mt-1">{clients.length} clients enregistrés</p>
+          <h1 className="text-2xl font-bold" style={{ color: '#131d2e' }}>Base Clients</h1>
+          <p className="text-sm mt-0.5" style={{ color: '#4f6272' }}>{clients.length} clients enregistrés</p>
         </div>
         <button onClick={openAdd}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl flex items-center gap-2 transition-colors shadow-sm">
-          <UserPlus size={16} /> Nouveau client
+          className="flex items-center gap-2 text-sm font-bold px-5 py-2.5 rounded-xl text-white hover:opacity-90 transition-all"
+          style={{ background: '#2563EB', boxShadow: '0 4px 14px rgba(37,99,235,0.25)' }}>
+          <UserPlus size={15} /> Nouveau client
         </button>
       </div>
 
-      {/* Search */}
-      <div className="relative mb-6 max-w-md">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          type="text" placeholder="Rechercher par nom, email, téléphone..."
-          value={search} onChange={e => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-        />
+      <div className="relative mb-6 max-w-sm">
+        <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: '#8fa5b5' }} />
+        <input type="text" placeholder="Rechercher..." value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="sea-input pl-10" />
       </div>
 
-      {/* Grid */}
       {filtered.length === 0 ? (
-        <div className="text-center py-20 text-slate-400">
-          <User size={40} className="mx-auto mb-3 opacity-30" />
+        <div className="text-center py-20" style={{ color: '#8fa5b5' }}>
+          <User size={36} className="mx-auto mb-3 opacity-40" />
           <p className="font-medium">Aucun client trouvé</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(client => (
-            <div key={client.id}
-              className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-all group">
+            <div key={client.id} className="sea-card sea-card-hover p-5 transition-all group">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-black text-lg shrink-0"
+                    style={{ background: '#2d3f55' }}>
                     {client.nom[0]}
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-900">{client.nom}</p>
+                    <p className="font-bold text-sm mb-1" style={{ color: '#131d2e' }}>{client.nom}</p>
                     {client.cni
-                      ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">📎 CNI ✓</span>
-                      : <span className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-medium">CNI manquante</span>
+                      ? <span className="text-xs font-semibold px-2 py-0.5 rounded-lg" style={{ background: '#e6f4ea', color: '#2e7d32', border: '1px solid #a5d6a7' }}>CNI ✓</span>
+                      : <span className="text-xs font-semibold px-2 py-0.5 rounded-lg" style={{ background: '#fff8e1', color: '#b45309', border: '1px solid #fcd34d' }}>CNI manquante</span>
                     }
                   </div>
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button onClick={() => openEdit(client)}
-                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                    <Pencil size={14} />
+                    className="p-2 rounded-lg transition-colors" style={{ color: '#8fa5b5' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#2563EB'; e.currentTarget.style.background = '#e8f4fb' }}
+                    onMouseLeave={e => { e.currentTarget.style.color = '#8fa5b5'; e.currentTarget.style.background = 'transparent' }}>
+                    <Pencil size={13} />
                   </button>
                   <button onClick={() => setDeleteConfirm(client)}
-                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                    <Trash2 size={14} />
+                    className="p-2 rounded-lg transition-colors" style={{ color: '#8fa5b5' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.background = '#fee2e2' }}
+                    onMouseLeave={e => { e.currentTarget.style.color = '#8fa5b5'; e.currentTarget.style.background = 'transparent' }}>
+                    <Trash2 size={13} />
                   </button>
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <Mail size={12} className="shrink-0 text-slate-400" />
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 text-xs" style={{ color: '#4f6272' }}>
+                  <Mail size={11} className="shrink-0" style={{ color: '#8fa5b5' }} />
                   <span className="truncate">{client.email}</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <Phone size={12} className="shrink-0 text-slate-400" />
-                  <span>{client.telephone}</span>
-                </div>
+                {client.telephone && (
+                  <div className="flex items-center gap-2 text-xs" style={{ color: '#4f6272' }}>
+                    <Phone size={11} className="shrink-0" style={{ color: '#8fa5b5' }} />
+                    <span>{client.telephone}</span>
+                  </div>
+                )}
                 {client.adresse && (
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <MapPin size={12} className="shrink-0 text-slate-400" />
+                  <div className="flex items-center gap-2 text-xs" style={{ color: '#4f6272' }}>
+                    <MapPin size={11} className="shrink-0" style={{ color: '#8fa5b5' }} />
                     <span className="truncate">{client.adresse}</span>
                   </div>
                 )}
@@ -121,57 +112,50 @@ export default function Clients() {
         </div>
       )}
 
-      {/* Drawer add/edit */}
+      {/* Drawer */}
       {drawer !== null && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={closeDrawer} />
-          <div className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col fade-in">
-            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <div className="flex-1 bg-black/25 backdrop-blur-sm" onClick={closeDrawer} />
+          <div className="w-full max-w-md h-full shadow-2xl flex flex-col fade-in"
+            style={{ background: '#eef2f5', borderLeft: '1px solid #c8d6de' }}>
+            <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: '#c8d6de' }}>
               <div>
-                <h2 className="font-bold text-slate-900 text-lg">
+                <h2 className="font-bold text-lg" style={{ color: '#131d2e' }}>
                   {drawer === 'add' ? 'Nouveau client' : `Modifier ${drawer.nom}`}
                 </h2>
-                <p className="text-slate-500 text-xs mt-0.5">
-                  {drawer === 'add' ? 'Sera disponible immédiatement dans Nouvelle Vente' : 'Les modifications sont instantanées'}
+                <p className="text-xs mt-0.5" style={{ color: '#8fa5b5' }}>
+                  {drawer === 'add' ? 'Disponible immédiatement dans Nouvelle Vente' : 'Modifications instantanées'}
                 </p>
               </div>
-              <button onClick={closeDrawer} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <X size={18} className="text-slate-500" />
+              <button onClick={closeDrawer}
+                className="p-2 rounded-lg transition-colors"
+                onMouseEnter={e => e.currentTarget.style.background = '#dce4e8'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                <X size={17} style={{ color: '#4f6272' }} />
               </button>
             </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              <div>
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5 flex items-center gap-1.5"><User size={12} /> Nom complet*</label>
-                <input type="text" value={form.nom} onChange={e => setForm(p => ({ ...p, nom: e.target.value }))}
-                  placeholder="Ex: Jean Dupont"
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5 flex items-center gap-1.5"><Mail size={12} /> Email*</label>
-                <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                  placeholder="jean@exemple.fr"
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5 flex items-center gap-1.5"><Phone size={12} /> Téléphone</label>
-                <input type="tel" value={form.telephone} onChange={e => setForm(p => ({ ...p, telephone: e.target.value }))}
-                  placeholder="06 12 34 56 78"
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5 flex items-center gap-1.5"><MapPin size={12} /> Adresse</label>
-                <input type="text" value={form.adresse} onChange={e => setForm(p => ({ ...p, adresse: e.target.value }))}
-                  placeholder="12 rue de la Paix, 75001 Paris"
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {[
+                { key: 'nom',       label: 'Nom complet*', icon: User,    placeholder: 'Jean Dupont' },
+                { key: 'email',     label: 'Email*',        icon: Mail,    placeholder: 'jean@garage.fr' },
+                { key: 'telephone', label: 'Téléphone',     icon: Phone,   placeholder: '06 12 34 56 78' },
+                { key: 'adresse',   label: 'Adresse',       icon: MapPin,  placeholder: '12 rue de la Paix, 75001 Paris' },
+              ].map(f => (
+                <div key={f.key}>
+                  <label className="text-xs font-bold uppercase tracking-wider mb-1.5 flex items-center gap-1.5" style={{ color: '#4f6272' }}>
+                    <f.icon size={11} /> {f.label}
+                  </label>
+                  <input type="text" value={form[f.key]}
+                    onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                    placeholder={f.placeholder} className="sea-input" />
+                </div>
+              ))}
             </div>
-
-            <div className="p-6 border-t border-slate-100">
+            <div className="p-6 border-t" style={{ borderColor: '#c8d6de' }}>
               <button onClick={handleSave} disabled={!form.nom || !form.email}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-colors">
-                <Check size={16} />
-                {drawer === 'add' ? 'Ajouter le client' : 'Enregistrer les modifications'}
+                className="w-full text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                style={{ background: '#2563EB' }}>
+                <Check size={16} /> {drawer === 'add' ? 'Ajouter le client' : 'Enregistrer'}
               </button>
             </div>
           </div>
@@ -181,22 +165,27 @@ export default function Clients() {
       {/* Delete confirm */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)} />
-          <div className="relative bg-white rounded-2xl p-6 shadow-2xl w-full max-w-sm mx-4 fade-in">
-            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Trash2 size={20} className="text-red-500" />
+          <div className="absolute inset-0 bg-black/25 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)} />
+          <div className="relative rounded-2xl p-6 shadow-2xl w-full max-w-sm mx-4 fade-in border"
+            style={{ background: '#eef2f5', borderColor: '#c8d6de' }}>
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: '#fee2e2' }}>
+              <Trash2 size={20} style={{ color: '#dc2626' }} />
             </div>
-            <h3 className="text-center font-bold text-slate-900 mb-1">Supprimer ce client ?</h3>
-            <p className="text-center text-sm text-slate-500 mb-6">
-              <strong>{deleteConfirm.nom}</strong> sera retiré de la base clients.
+            <h3 className="text-center font-bold mb-1" style={{ color: '#131d2e' }}>Supprimer ce client ?</h3>
+            <p className="text-center text-sm mb-6" style={{ color: '#4f6272' }}>
+              <strong style={{ color: '#2d3f55' }}>{deleteConfirm.nom}</strong> sera retiré définitivement.
             </p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteConfirm(null)}
-                className="flex-1 border border-slate-200 text-slate-700 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors">
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                style={{ border: '1.5px solid #c8d6de', color: '#4f6272', background: '#dce4e8' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#c8d6de'}
+                onMouseLeave={e => e.currentTarget.style.background = '#dce4e8'}>
                 Annuler
               </button>
               <button onClick={() => handleDelete(deleteConfirm.id, deleteConfirm.nom)}
-                className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl text-sm font-medium transition-colors">
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors hover:opacity-90"
+                style={{ background: '#dc2626' }}>
                 Supprimer
               </button>
             </div>

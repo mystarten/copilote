@@ -3,9 +3,9 @@ import Navbar from './Navbar'
 
 export default function Layout({ children, user, onLogout }) {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen" style={{ background: '#dce4e8' }}>
       <Navbar user={user} onLogout={onLogout} />
-      <main className="pt-16">
+      <main className="pt-[70px]">
         {children}
       </main>
     </div>
