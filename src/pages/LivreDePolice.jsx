@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Download, FileSpreadsheet, Plus, X, Check, Car, Hash, Calendar, Euro, Building2, Pencil, Package, ShoppingCart, BarChart2 } from 'lucide-react'
 import { useToast } from '../components/Toast'
 import { useLivreDePolice } from '../context/LivreDePoliceContext'
+import { formatPlaque } from '../lib/formatters'
 
 const emptyVehicle = {
   marque: '', modele: '', plaque: '', vin: '',
@@ -262,8 +263,13 @@ export default function LivreDePolice() {
                     <f.icon size={11} /> {f.label}
                   </label>
                   <input type={f.type} placeholder={f.placeholder} value={addForm[f.key]}
-                    onChange={e => { setAddForm(p => ({ ...p, [f.key]: e.target.value })); if (errors[f.key]) setErrors(p => ({ ...p, [f.key]: false })) }}
+                    onChange={e => {
+                      const val = f.key === 'plaque' ? formatPlaque(e.target.value) : e.target.value
+                      setAddForm(p => ({ ...p, [f.key]: val }))
+                      if (errors[f.key]) setErrors(p => ({ ...p, [f.key]: false }))
+                    }}
                     className="sea-input"
+                    maxLength={f.key === 'plaque' ? 9 : undefined}
                     style={errors[f.key] ? { borderColor: '#dc2626' } : {}} />
                   {errors[f.key] && <p className="text-xs mt-1" style={{ color: '#dc2626' }}>Champ requis</p>}
                 </div>
@@ -335,7 +341,8 @@ export default function LivreDePolice() {
                     </label>
                     <input type={f.type} placeholder={f.placeholder}
                       value={editForm[f.key]}
-                      onChange={e => setEditForm(p => ({ ...p, [f.key]: e.target.value }))}
+                      maxLength={f.key === 'plaque' ? 9 : undefined}
+                      onChange={e => setEditForm(p => ({ ...p, [f.key]: f.key === 'plaque' ? formatPlaque(e.target.value) : e.target.value }))}
                       className="sea-input" />
                   </div>
                 ))}

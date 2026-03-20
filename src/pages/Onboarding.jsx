@@ -1,12 +1,14 @@
-import React, { useState } from 'react'
-import { Shield, ArrowRight, ArrowLeft, Check, Building2, X, Upload } from 'lucide-react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { Shield, ArrowRight, ArrowLeft, Check, Building2, X, Upload, PenLine, RotateCcw } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { formatSiret, formatTelephone, formatCodePostal } from '../lib/formatters'
 
 const STEPS = [
   { id: 1, label: 'Votre garage',    desc: 'Nom légal et SIRET' },
   { id: 2, label: 'Coordonnées',     desc: 'Adresse & contact' },
   { id: 3, label: 'Personnalisation',desc: 'Logo & types de ventes' },
-  { id: 4, label: "C'est parti !",   desc: 'Récapitulatif' },
+  { id: 4, label: 'Signature',       desc: 'Votre signature sur les documents' },
+  { id: 5, label: "C'est parti !",   desc: 'Récapitulatif' },
 ]
 
 export default function Onboarding({ user, onComplete }) {
@@ -25,6 +27,60 @@ export default function Onboarding({ user, onComplete }) {
   })
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
+
+  // ── Signature canvas ─────────────────────────────────────────────
+  const sigCanvasRef = useRef(null)
+  const sigDrawing   = useRef(false)
+  const [sigEmpty, setSigEmpty] = useState(true)
+
+  const sigGetPos = (e, canvas) => {
+    const rect = canvas.getBoundingClientRect()
+    const src = e.touches ? e.touches[0] : e
+    return { x: src.clientX - rect.left, y: src.clientY - rect.top }
+  }
+  const sigStart = useCallback((e) => {
+    e.preventDefault()
+    const c = sigCanvasRef.current; if (!c) return
+    const ctx = c.getContext('2d')
+    const { x, y } = sigGetPos(e, c)
+    ctx.beginPath(); ctx.moveTo(x, y)
+    sigDrawing.current = true
+  }, [])
+  const sigDraw = useCallback((e) => {
+    e.preventDefault()
+    if (!sigDrawing.current) return
+    const c = sigCanvasRef.current; if (!c) return
+    const ctx = c.getContext('2d')
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+    const { x, y } = sigGetPos(e, c)
+    ctx.lineTo(x, y); ctx.stroke()
+    setSigEmpty(false)
+  }, [])
+  const sigStop = useCallback(() => { sigDrawing.current = false }, [])
+  const sigClear = () => {
+    const c = sigCanvasRef.current; if (!c) return
+    c.getContext('2d').clearRect(0, 0, c.width, c.height)
+    setSigEmpty(true)
+    set('signature', null)
+  }
+  const sigSave = () => {
+    if (sigEmpty) return
+    const dataUrl = sigCanvasRef.current.toDataURL('image/png')
+    set('signature', dataUrl)
+  }
+
+  useEffect(() => {
+    if (step !== 4) return
+    const c = sigCanvasRef.current; if (!c) return
+    c.addEventListener('touchstart', sigStart, { passive: false })
+    c.addEventListener('touchmove',  sigDraw,  { passive: false })
+    c.addEventListener('touchend',   sigStop)
+    return () => {
+      c.removeEventListener('touchstart', sigStart)
+      c.removeEventListener('touchmove',  sigDraw)
+      c.removeEventListener('touchend',   sigStop)
+    }
+  }, [step, sigStart, sigDraw, sigStop])
 
   const toggleType = (type) => setForm(f => ({
     ...f,
@@ -63,6 +119,7 @@ export default function Onboarding({ user, onComplete }) {
         telephone:       form.telephone,
         site_web:        form.siteWeb,
         logo_url:        form.logo,
+        signature:       form.signature   || null,
         types_ventes:    form.typesVentes,
         onboarding_done: true,
       })
@@ -139,7 +196,7 @@ export default function Onboarding({ user, onComplete }) {
               <div>
                 <label className="text-blue-300 text-xs font-semibold uppercase tracking-widest mb-2 block">SIRET</label>
                 <input className="glass-input" placeholder="123 456 789 00010"
-                  value={form.siret} onChange={e => set('siret', e.target.value)} />
+                  value={form.siret} onChange={e => set('siret', formatSiret(e.target.value))} maxLength={17} />
               </div>
               <div className="p-3 rounded-xl text-xs"
                 style={{ background: 'rgba(37,99,235,0.12)', border: '1px solid rgba(37,99,235,0.25)', color: 'rgba(147,197,253,0.8)' }}>
@@ -160,7 +217,7 @@ export default function Onboarding({ user, onComplete }) {
                 <div>
                   <label className="text-blue-300 text-xs font-semibold uppercase tracking-widest mb-2 block">Code postal</label>
                   <input className="glass-input" placeholder="75001"
-                    value={form.codePostal} onChange={e => set('codePostal', e.target.value)} />
+                    value={form.codePostal} onChange={e => set('codePostal', formatCodePostal(e.target.value))} maxLength={5} />
                 </div>
                 <div>
                   <label className="text-blue-300 text-xs font-semibold uppercase tracking-widest mb-2 block">Ville</label>
@@ -171,7 +228,7 @@ export default function Onboarding({ user, onComplete }) {
               <div>
                 <label className="text-blue-300 text-xs font-semibold uppercase tracking-widest mb-2 block">Téléphone *</label>
                 <input className="glass-input" placeholder="01 23 45 67 89"
-                  value={form.telephone} onChange={e => set('telephone', e.target.value)} />
+                  value={form.telephone} onChange={e => set('telephone', formatTelephone(e.target.value))} maxLength={14} />
               </div>
               <div>
                 <label className="text-blue-300 text-xs font-semibold uppercase tracking-widest mb-2 block">Site web</label>
@@ -239,8 +296,63 @@ export default function Onboarding({ user, onComplete }) {
             </div>
           )}
 
-          {/* ── Étape 4 — Récap ── */}
+          {/* ── Étape 4 — Signature ── */}
           {step === 4 && (
+            <div className="space-y-4">
+              {form.signature ? (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: '#22c55e' }}>
+                      <Check size={12} className="text-white" />
+                    </div>
+                    <p className="text-green-400 text-sm font-bold">Signature enregistrée</p>
+                  </div>
+                  <div className="rounded-xl overflow-hidden p-4" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                    <img src={form.signature} alt="Signature" style={{ height: 70, maxWidth: '100%', objectFit: 'contain' }} />
+                  </div>
+                  <button onClick={sigClear} className="mt-3 flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg transition-all" style={{ color: 'rgba(255,255,255,0.45)', background: 'rgba(255,255,255,0.06)' }}>
+                    <RotateCcw size={11} /> Refaire
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ border: '2px dashed rgba(255,255,255,0.18)', borderRadius: 14, overflow: 'hidden', background: 'rgba(255,255,255,0.04)', position: 'relative', cursor: 'crosshair' }}>
+                    <canvas
+                      ref={sigCanvasRef}
+                      width={460} height={160}
+                      onMouseDown={sigStart} onMouseMove={sigDraw}
+                      onMouseUp={sigStop} onMouseLeave={sigStop}
+                      style={{ display: 'block', width: '100%', height: 160, touchAction: 'none' }}
+                    />
+                    {sigEmpty && (
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, pointerEvents: 'none' }}>
+                        <PenLine size={24} style={{ color: 'rgba(147,197,253,0.3)' }} />
+                        <p style={{ color: 'rgba(147,197,253,0.4)', fontSize: 13 }}>Signez ici avec votre souris ou votre doigt</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-3 mt-3">
+                    <button onClick={sigClear} disabled={sigEmpty}
+                      className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl transition-all"
+                      style={{ color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.06)', opacity: sigEmpty ? 0.4 : 1 }}>
+                      <RotateCcw size={11} /> Effacer
+                    </button>
+                    <button onClick={sigSave} disabled={sigEmpty}
+                      className="flex items-center gap-2 text-xs px-4 py-2 rounded-xl font-bold transition-all"
+                      style={{ background: sigEmpty ? 'rgba(255,255,255,0.06)' : '#2563EB', color: sigEmpty ? 'rgba(255,255,255,0.3)' : '#fff', cursor: sigEmpty ? 'not-allowed' : 'pointer' }}>
+                      <Check size={11} /> Valider ma signature
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className="p-3 rounded-xl text-xs" style={{ background: 'rgba(37,99,235,0.12)', border: '1px solid rgba(37,99,235,0.25)', color: 'rgba(147,197,253,0.7)' }}>
+                💡 Votre signature sera automatiquement apposée sur tous vos documents. Vous pourrez la modifier dans les paramètres.
+              </div>
+            </div>
+          )}
+
+          {/* ── Étape 5 — Récap ── */}
+          {step === 5 && (
             <div className="space-y-4">
               <div className="p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}>
                 <div className="flex items-center gap-3 mb-4">
@@ -285,7 +397,7 @@ export default function Onboarding({ user, onComplete }) {
               : <div />
             }
 
-            {step < 4
+            {step < 5
               ? <button onClick={() => canNext() && setStep(s => s + 1)} disabled={!canNext()}
                   className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-30"
                   style={{ background: 'linear-gradient(135deg, #2563EB, #1D4ED8)', boxShadow: '0 4px 16px rgba(37,99,235,0.35)' }}>
@@ -303,7 +415,7 @@ export default function Onboarding({ user, onComplete }) {
           </div>
         </div>
 
-        {step < 4 && (
+        {step < 5 && (
           <div className="text-center mt-4">
             <button onClick={handleComplete} disabled={saving}
               className="text-xs transition-colors"

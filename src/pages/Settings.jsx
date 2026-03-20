@@ -1,11 +1,13 @@
-import React, { useState } from 'react'
-import { Building2, User, CreditCard, Settings2, Check, Upload, X, Lock, Save } from 'lucide-react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { Building2, User, CreditCard, Settings2, Check, Upload, X, Lock, Save, PenLine, RotateCcw } from 'lucide-react'
+import { formatSiret, formatTelephone, formatCodePostal } from '../lib/formatters'
 import { useToast } from '../components/Toast'
 import { useNavigate } from 'react-router-dom'
 import { uploadFile } from '../lib/supabase'
 
 const SECTIONS = [
   { id: 'garage',      label: 'Mon Garage',    icon: Building2  },
+  { id: 'signature',   label: 'Ma Signature',  icon: PenLine    },
   { id: 'compte',      label: 'Mon Compte',    icon: User       },
   { id: 'abonnement',  label: 'Abonnement',    icon: CreditCard },
   { id: 'preferences', label: 'Préférences',   icon: Settings2  },
@@ -75,6 +77,61 @@ export default function Settings({ user, onUpdateUser }) {
   const [prefs, setPrefsState] = useState({
     typesVentes: user.typesVentes || ['france'],
   })
+
+  // ── Signature ────────────────────────────────────────────────────
+  const [savedSignature, setSavedSignature] = useState(user.signature || null)
+  const [sigIsEmpty, setSigIsEmpty] = useState(true)
+  const sigCanvasRef = useRef(null)
+  const sigDrawing = useRef(false)
+
+  const sigGetPos = (e, canvas) => {
+    const rect = canvas.getBoundingClientRect()
+    const src = e.touches ? e.touches[0] : e
+    return { x: src.clientX - rect.left, y: src.clientY - rect.top }
+  }
+  const sigStart = useCallback((e) => {
+    e.preventDefault()
+    const canvas = sigCanvasRef.current; if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    const { x, y } = sigGetPos(e, canvas)
+    ctx.beginPath(); ctx.moveTo(x, y)
+    sigDrawing.current = true
+  }, [])
+  const sigDraw = useCallback((e) => {
+    e.preventDefault()
+    if (!sigDrawing.current) return
+    const canvas = sigCanvasRef.current; if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    ctx.strokeStyle = '#131d2e'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+    const { x, y } = sigGetPos(e, canvas)
+    ctx.lineTo(x, y); ctx.stroke()
+    setSigIsEmpty(false)
+  }, [])
+  const sigStop = useCallback(() => { sigDrawing.current = false }, [])
+  const sigClear = () => {
+    const canvas = sigCanvasRef.current; if (!canvas) return
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
+    setSigIsEmpty(true)
+  }
+  const sigSave = () => {
+    if (sigIsEmpty) return
+    const dataUrl = sigCanvasRef.current.toDataURL('image/png')
+    setSavedSignature(dataUrl)
+    onUpdateUser({ ...user, signature: dataUrl })
+    showToast('Signature enregistrée', 'success')
+  }
+
+  useEffect(() => {
+    const canvas = sigCanvasRef.current; if (!canvas) return
+    canvas.addEventListener('touchstart', sigStart, { passive: false })
+    canvas.addEventListener('touchmove', sigDraw,  { passive: false })
+    canvas.addEventListener('touchend',  sigStop)
+    return () => {
+      canvas.removeEventListener('touchstart', sigStart)
+      canvas.removeEventListener('touchmove', sigDraw)
+      canvas.removeEventListener('touchend',  sigStop)
+    }
+  }, [section, sigStart, sigDraw, sigStop]) // re-bind quand on change de section
 
   const setG = (k, v) => setGarageState(f => ({ ...f, [k]: v }))
   const setC = (k, v) => setCompteState(f => ({ ...f, [k]: v }))
@@ -216,12 +273,12 @@ export default function Settings({ user, onUpdateUser }) {
                 <div>
                   <label className="text-xs font-bold uppercase tracking-wider mb-1.5 block" style={{ color: '#8fa5b5' }}>SIRET</label>
                   <input className="sea-input" placeholder="123 456 789 00010"
-                    value={garage.siret} onChange={e => setG('siret', e.target.value)} />
+                    value={garage.siret} onChange={e => setG('siret', formatSiret(e.target.value))} maxLength={17} />
                 </div>
                 <div>
                   <label className="text-xs font-bold uppercase tracking-wider mb-1.5 block" style={{ color: '#8fa5b5' }}>Téléphone</label>
                   <input className="sea-input" placeholder="01 23 45 67 89"
-                    value={garage.telephone} onChange={e => setG('telephone', e.target.value)} />
+                    value={garage.telephone} onChange={e => setG('telephone', formatTelephone(e.target.value))} maxLength={14} />
                 </div>
                 <div className="col-span-2">
                   <label className="text-xs font-bold uppercase tracking-wider mb-1.5 block" style={{ color: '#8fa5b5' }}>Adresse</label>
@@ -231,7 +288,7 @@ export default function Settings({ user, onUpdateUser }) {
                 <div>
                   <label className="text-xs font-bold uppercase tracking-wider mb-1.5 block" style={{ color: '#8fa5b5' }}>Code postal</label>
                   <input className="sea-input" placeholder="75001"
-                    value={garage.codePostal} onChange={e => setG('codePostal', e.target.value)} />
+                    value={garage.codePostal} onChange={e => setG('codePostal', formatCodePostal(e.target.value))} maxLength={5} />
                 </div>
                 <div>
                   <label className="text-xs font-bold uppercase tracking-wider mb-1.5 block" style={{ color: '#8fa5b5' }}>Ville</label>
@@ -250,6 +307,89 @@ export default function Settings({ user, onUpdateUser }) {
                 style={{ background: '#2563EB', boxShadow: '0 4px 14px rgba(37,99,235,0.25)' }}>
                 <Save size={14} /> Sauvegarder
               </button>
+            </div>
+          )}
+
+          {/* ── Ma Signature ── */}
+          {section === 'signature' && (
+            <div>
+              <h2 className="text-lg font-bold mb-1" style={{ color: '#131d2e' }}>Ma Signature</h2>
+              <p className="text-sm mb-6" style={{ color: '#8fa5b5' }}>
+                Votre signature sera automatiquement appliquée sur tous les documents générés. Dessinez-la une seule fois.
+              </p>
+
+              {/* Signature sauvegardée */}
+              {savedSignature && (
+                <div className="mb-6 p-4 rounded-2xl border" style={{ background: '#f0fdf4', borderColor: '#86efac' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: '#16a34a' }}>
+                        <Check size={14} className="text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold" style={{ color: '#15803d' }}>Signature enregistrée</p>
+                        <p className="text-xs" style={{ color: '#4ade80' }}>Appliquée automatiquement sur vos documents</p>
+                      </div>
+                    </div>
+                    <button onClick={() => { setSavedSignature(null); onUpdateUser({ ...user, signature: null }) }}
+                      className="text-xs px-3 py-1.5 rounded-lg font-semibold"
+                      style={{ background: '#fff', border: '1px solid #86efac', color: '#16a34a', cursor: 'pointer' }}>
+                      Modifier
+                    </button>
+                  </div>
+                  <div className="rounded-xl overflow-hidden" style={{ background: '#fff', border: '1px solid #bbf7d0', padding: '12px 20px' }}>
+                    <img src={savedSignature} alt="Signature" style={{ height: 60, maxWidth: '100%', objectFit: 'contain' }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Canvas */}
+              {!savedSignature && (
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider mb-3 block" style={{ color: '#8fa5b5' }}>
+                    Dessinez votre signature
+                  </label>
+                  <div style={{ border: '2px dashed #b3d4e8', borderRadius: 16, overflow: 'hidden', background: '#fafcfe', position: 'relative', cursor: 'crosshair', marginBottom: 12 }}>
+                    <canvas
+                      ref={sigCanvasRef}
+                      width={600} height={180}
+                      onMouseDown={sigStart} onMouseMove={sigDraw}
+                      onMouseUp={sigStop} onMouseLeave={sigStop}
+                      style={{ display: 'block', width: '100%', height: 180, touchAction: 'none' }}
+                    />
+                    {sigIsEmpty && (
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                        <div className="text-center">
+                          <PenLine size={28} style={{ color: '#c8d6de', margin: '0 auto 8px' }} />
+                          <p style={{ color: '#b3d4e8', fontSize: 14, fontWeight: 500 }}>Signez ici avec votre souris ou votre doigt</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs mb-4" style={{ color: '#8fa5b5' }}>
+                    {user.garageName || 'Votre garage'} · {new Date().toLocaleDateString('fr-FR')}
+                  </p>
+                  <div className="flex gap-3">
+                    <button onClick={sigClear}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
+                      style={{ background: '#f0f4f7', border: '1px solid #dce4e8', color: '#4f6272', cursor: 'pointer' }}>
+                      <RotateCcw size={14} /> Effacer
+                    </button>
+                    <button onClick={sigSave} disabled={sigIsEmpty}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90"
+                      style={{ background: sigIsEmpty ? '#c8d6de' : '#2563EB', boxShadow: sigIsEmpty ? 'none' : '0 4px 14px rgba(37,99,235,0.25)', cursor: sigIsEmpty ? 'not-allowed' : 'pointer' }}>
+                      <Save size={14} /> Enregistrer ma signature
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Info légale */}
+              <div className="mt-6 p-3 rounded-xl" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+                <p className="text-xs" style={{ color: '#92400e' }}>
+                  <strong>Note :</strong> Cette signature électronique est utilisée à des fins internes et de productivité. Pour une valeur légale certifiée (eIDAS), un service tiers qualifié est recommandé.
+                </p>
+              </div>
             </div>
           )}
 

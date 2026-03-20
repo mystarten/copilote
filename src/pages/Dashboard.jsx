@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { TrendingUp, FileText, Clock, AlertCircle, Eye, ChevronRight, X, Car, User, Calendar, CreditCard, Hash, Tag } from 'lucide-react'
 import { mockSales } from '../data/mockData'
 import { useUser } from '../context/UserContext'
 import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 
 const typeMeta = {
   france: { label: 'France', style: { background: '#e8f4fb', color: '#2563EB', border: '1px solid #b3d4e8' } },
@@ -20,7 +21,14 @@ export default function Dashboard() {
   const user = useUser()
   const [selectedSale, setSelectedSale] = useState(null)
 
-  const sales = user?.isDemo ? mockSales : []
+  const [realSales, setRealSales] = useState([])
+  useEffect(() => {
+    if (user?.isDemo || !user?.id) return
+    supabase.from('ventes').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10)
+      .then(({ data }) => { if (data) setRealSales(data) })
+  }, [user?.id, user?.isDemo])
+
+  const sales = user?.isDemo ? mockSales : realSales
   const enCours = sales.filter(s => s.statut === 'en_cours').length
 
   const cards = user?.isDemo
@@ -111,7 +119,13 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {sales.map((sale, i) => (
+              {sales.map((sale, i) => {
+                // Supabase → client_nom/vehicule, mockData → client/vehicule
+                const clientName = sale.client_nom || sale.client || '?'
+                const vehiculeLabel = sale.vehicule || '—'
+                const typeKey = sale.type_vente || sale.type || 'france'
+                const statutKey = sale.statut || 'genere'
+                return (
                 <tr key={sale.id}
                   className="transition-colors"
                   style={{ borderBottom: i < sales.length - 1 ? '1px solid #c8d6de' : 'none' }}
@@ -121,23 +135,23 @@ export default function Dashboard() {
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0"
                         style={{ background: '#2d3f55' }}>
-                        {sale.client[0]}
+                        {clientName[0]?.toUpperCase() || '?'}
                       </div>
-                      <span className="text-sm font-semibold" style={{ color: '#131d2e' }}>{sale.client}</span>
+                      <span className="text-sm font-semibold" style={{ color: '#131d2e' }}>{clientName}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm" style={{ color: '#4f6272' }}>{sale.vehicule}</td>
+                  <td className="px-6 py-4 text-sm" style={{ color: '#4f6272' }}>{vehiculeLabel}</td>
                   <td className="px-6 py-4">
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-lg" style={typeMeta[sale.type].style}>
-                      {typeMeta[sale.type].label}
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-lg" style={(typeMeta[typeKey] || typeMeta.france).style}>
+                      {(typeMeta[typeKey] || typeMeta.france).label}
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-lg" style={statutMeta[sale.statut].style}>
-                      {statutMeta[sale.statut].label}
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-lg" style={(statutMeta[statutKey] || statutMeta.genere).style}>
+                      {(statutMeta[statutKey] || statutMeta.genere).label}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm" style={{ color: '#8fa5b5' }}>{sale.date}</td>
+                  <td className="px-6 py-4 text-sm" style={{ color: '#8fa5b5' }}>{sale.date_vente || sale.date || sale.created_at?.slice(0,10) || '—'}</td>
                   <td className="px-6 py-4">
                     <button onClick={() => setSelectedSale(sale)}
                       className="flex items-center gap-1.5 text-xs font-medium px-2 py-1.5 rounded-lg transition-all"
@@ -148,14 +162,26 @@ export default function Dashboard() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         )}
       </div>
 
       {/* Drawer détail vente */}
-      {selectedSale && (
+      {selectedSale && (() => {
+        const s = {
+          client:   selectedSale.client_nom  || selectedSale.client  || '—',
+          vehicule: selectedSale.vehicule    || '—',
+          type:     selectedSale.type_vente  || selectedSale.type    || 'france',
+          statut:   selectedSale.statut      || 'genere',
+          date:     selectedSale.date_vente  || selectedSale.date    || selectedSale.created_at?.slice(0,10) || '—',
+          prix:     selectedSale.prix,
+          paiement: selectedSale.paiement,
+          plaque:   selectedSale.plaque,
+          documents: selectedSale.documents,
+        }
+        return (
         <div className="fixed inset-0 z-50 flex">
           <div className="flex-1 bg-black/25 backdrop-blur-sm" onClick={() => setSelectedSale(null)} />
           <div className="w-full max-w-md h-full shadow-2xl flex flex-col fade-in"
@@ -163,7 +189,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: '#c8d6de' }}>
               <div>
                 <h2 className="font-bold text-lg" style={{ color: '#131d2e' }}>Détail de la vente</h2>
-                <p className="text-xs mt-0.5" style={{ color: '#8fa5b5' }}>{selectedSale.date}</p>
+                <p className="text-xs mt-0.5" style={{ color: '#8fa5b5' }}>{s.date}</p>
               </div>
               <button onClick={() => setSelectedSale(null)}
                 className="p-2 rounded-lg transition-colors"
@@ -181,9 +207,9 @@ export default function Dashboard() {
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black shrink-0"
                     style={{ background: '#2d3f55' }}>
-                    {selectedSale.client[0]}
+                    {s.client[0]?.toUpperCase() || '?'}
                   </div>
-                  <p className="font-bold" style={{ color: '#131d2e' }}>{selectedSale.client}</p>
+                  <p className="font-bold" style={{ color: '#131d2e' }}>{s.client}</p>
                 </div>
               </div>
 
@@ -191,7 +217,7 @@ export default function Dashboard() {
                 <p className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: '#8fa5b5' }}>
                   <Car size={11} /> Véhicule
                 </p>
-                <p className="font-bold" style={{ color: '#131d2e' }}>{selectedSale.vehicule}</p>
+                <p className="font-bold" style={{ color: '#131d2e' }}>{s.vehicule}</p>
               </div>
 
               <div className="p-4 rounded-xl space-y-3" style={{ background: '#dce4e8', border: '1px solid #c8d6de' }}>
@@ -201,55 +227,55 @@ export default function Dashboard() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: '#8fa5b5' }}>Type</p>
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={typeMeta[selectedSale.type].style}>
-                      {typeMeta[selectedSale.type].label}
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={(typeMeta[s.type] || typeMeta.france).style}>
+                      {(typeMeta[s.type] || typeMeta.france).label}
                     </span>
                   </div>
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: '#8fa5b5' }}>Statut</p>
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={statutMeta[selectedSale.statut].style}>
-                      {statutMeta[selectedSale.statut].label}
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={(statutMeta[s.statut] || statutMeta.genere).style}>
+                      {(statutMeta[s.statut] || statutMeta.genere).label}
                     </span>
                   </div>
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: '#8fa5b5' }}>Date</p>
                     <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: '#131d2e' }}>
-                      <Calendar size={12} style={{ color: '#8fa5b5' }} /> {selectedSale.date}
+                      <Calendar size={12} style={{ color: '#8fa5b5' }} /> {s.date}
                     </p>
                   </div>
-                  {selectedSale.prix && (
+                  {s.prix && (
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: '#8fa5b5' }}>Prix</p>
-                      <p className="text-sm font-bold" style={{ color: '#2e7d32' }}>{selectedSale.prix.toLocaleString()} €</p>
+                      <p className="text-sm font-bold" style={{ color: '#2e7d32' }}>{Number(s.prix).toLocaleString()} €</p>
                     </div>
                   )}
-                  {selectedSale.paiement && (
+                  {s.paiement && (
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: '#8fa5b5' }}>Paiement</p>
                       <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: '#131d2e' }}>
-                        <CreditCard size={12} style={{ color: '#8fa5b5' }} /> {selectedSale.paiement}
+                        <CreditCard size={12} style={{ color: '#8fa5b5' }} /> {s.paiement}
                       </p>
                     </div>
                   )}
-                  {selectedSale.plaque && (
+                  {s.plaque && (
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: '#8fa5b5' }}>Plaque</p>
                       <span className="font-mono text-xs font-bold px-2 py-1 rounded-lg"
                         style={{ background: '#e8f4fb', color: '#2563EB', border: '1px solid #b3d4e8' }}>
-                        {selectedSale.plaque}
+                        {s.plaque}
                       </span>
                     </div>
                   )}
                 </div>
               </div>
 
-              {selectedSale.documents && selectedSale.documents.length > 0 && (
+              {s.documents && s.documents.length > 0 && (
                 <div className="p-4 rounded-xl" style={{ background: '#dce4e8', border: '1px solid #c8d6de' }}>
                   <p className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: '#8fa5b5' }}>
                     <Hash size={11} /> Documents générés
                   </p>
                   <div className="space-y-1.5">
-                    {selectedSale.documents.map(doc => (
+                    {s.documents.map(doc => (
                       <div key={doc} className="flex items-center gap-2 text-xs py-1.5 px-3 rounded-lg"
                         style={{ background: '#e6f4ea', border: '1px solid #a5d6a7', color: '#2e7d32' }}>
                         <span>✓</span> {doc}
@@ -274,7 +300,8 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
     </div>
   )
 }

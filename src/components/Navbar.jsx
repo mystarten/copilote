@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, PlusCircle, BookOpen, Shield, LogOut, Building2, Users, CreditCard, Menu, X, Search, BarChart2 } from 'lucide-react'
-import Notifications from './Notifications'
-import SearchModal from './SearchModal'
+import { LayoutDashboard, PlusCircle, BookOpen, LogOut, Building2, Users, CreditCard, Menu, X, BarChart2, Shield } from 'lucide-react'
 
 const navItems = [
   { path: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard'        },
@@ -16,18 +14,6 @@ const navItems = [
 export default function Navbar({ user, onLogout }) {
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [searchOpen, setSearchOpen] = useState(false)
-
-  useEffect(() => {
-    const handler = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        setSearchOpen(v => !v)
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [])
 
   return (
     <>
@@ -67,27 +53,6 @@ export default function Navbar({ user, onLogout }) {
         </div>
 
         <div className="flex-1" />
-
-        {/* Search button — desktop */}
-        <button
-          onClick={() => setSearchOpen(true)}
-          className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl shrink-0 transition-all text-sm"
-          style={{ background: '#1e2d42', border: '1px solid #2d3f55', color: '#8fa5b5' }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = '#2563EB'}
-          onMouseLeave={e => e.currentTarget.style.borderColor = '#2d3f55'}
-          title="Rechercher (Ctrl+K)">
-          <Search size={14} />
-          <span className="hidden xl:block text-xs">Rechercher…</span>
-          <kbd className="hidden xl:block text-xs px-1.5 py-0.5 rounded font-mono"
-            style={{ background: '#131d2e', color: '#4f6272', border: '1px solid #2d3f55' }}>
-            ⌘K
-          </kbd>
-        </button>
-
-        {/* Notifications — desktop */}
-        <div className="hidden md:block">
-          <Notifications isDemo={user?.isDemo} />
-        </div>
 
         {/* Garage — desktop uniquement */}
         <button onClick={() => navigate('/settings')}
@@ -157,14 +122,6 @@ export default function Navbar({ user, onLogout }) {
               </div>
             </button>
 
-            {/* Search mobile */}
-            <button onClick={() => { setSearchOpen(true); setMobileOpen(false) }}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold"
-              style={{ color: '#8fa5b5', background: '#1e2d42', border: '1px solid #2d3f55' }}>
-              <Search size={16} />
-              Rechercher…
-            </button>
-
             {/* Nav items */}
             {navItems.map(({ path, icon: Icon, label }) => (
               <NavLink key={path} to={path}
@@ -194,8 +151,6 @@ export default function Navbar({ user, onLogout }) {
         </div>
       )}
 
-      {/* Search modal */}
-      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   )
 }

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Check, ChevronRight, User, Car, FileText, Zap, Search, CheckCircle, Euro, Calendar, CreditCard, Shield, RotateCcw, UserPlus, X, Download, Send, Eye, Camera, Hash, Loader, Upload, ShieldCheck } from 'lucide-react'
 import { useClients } from '../context/ClientsContext'
 import { useVehicles } from '../context/VehiclesContext'
@@ -7,6 +7,8 @@ import { useToast } from '../components/Toast'
 import DocumentPreview from '../components/DocumentPreview'
 import { callN8N } from '../lib/n8n'
 import { supabase } from '../lib/supabase'
+import { formatTelephone } from '../lib/formatters'
+import { useLivreDePolice } from '../context/LivreDePoliceContext'
 
 const DOCS = {
   france: ['Facture de vente', 'Bon de commande', 'Bon de livraison', 'CERFA 15776', 'Certificat de cession', 'Certificat de situation administrative', 'Garantie commerciale', "Déclaration d'achat"],
@@ -163,6 +165,7 @@ export default function NewSale() {
   const { showToast } = useToast()
   const { clients, addClient } = useClients()
   const { vehicles } = useVehicles()
+  const { entries: ldpEntries, addEntry: addLdpEntry, updateEntry: updateLdpEntry } = useLivreDePolice()
   const user = useUser()
   const cgInputRef = useRef(null)
 
@@ -308,13 +311,14 @@ export default function NewSale() {
           statut:    selectedVehicle?.statut    || '',
         },
         garage: {
-          nom:       user?.garageName || 'Mon Garage',
-          siret:     user?.siret      || '',
-          adresse:   user?.adresse    || '',
-          ville:     user?.ville      || '',
-          telephone: user?.telephone  || '',
-          siteWeb:   user?.siteWeb    || '',
-          logo:      user?.logo       || null,
+          nom:               user?.garageName || 'Mon Garage',
+          siret:             user?.siret      || '',
+          adresse:           user?.adresse    || '',
+          ville:             user?.ville      || '',
+          telephone:         user?.telephone  || '',
+          siteWeb:           user?.siteWeb    || '',
+          logo:              user?.logo       || null,
+          signature_vendeur: user?.signature  || null,
         },
       })
 
@@ -375,10 +379,15 @@ export default function NewSale() {
 
   const saveVente = async () => {
     if (!user?.id || user?.isDemo) return
+
+    const clientNom = `${selectedClient?.prenom || ''} ${selectedClient?.nom || ''}`.trim()
+    const vehiculeLabel = selectedVehicle ? `${selectedVehicle.marque} ${selectedVehicle.modele}` : ''
+
+    // 1. Sauvegarder dans la table ventes
     await supabase.from('ventes').insert({
       user_id:    user.id,
-      client_nom: `${selectedClient?.prenom || ''} ${selectedClient?.nom || ''}`.trim(),
-      vehicule:   selectedVehicle ? `${selectedVehicle.marque} ${selectedVehicle.modele}` : '',
+      client_nom: clientNom,
+      vehicule:   vehiculeLabel,
       type_vente: saleType,
       prix:       Number(prix) || null,
       paiement,
@@ -386,6 +395,36 @@ export default function NewSale() {
       documents:  selectedDocsList,
       date_vente: date,
     })
+
+    // 2. Synchroniser le livre de police
+    if (selectedVehicle?.plaque) {
+      const ldpEntry = ldpEntries?.find(e => e.plaque === selectedVehicle.plaque)
+      if (ldpEntry) {
+        // Véhicule déjà dans LDP → on le marque vendu
+        updateLdpEntry(ldpEntry.id, {
+          ...ldpEntry,
+          statut:      'vendu',
+          prixCession: Number(prix) || ldpEntry.prixCession,
+          dateSortie:  date,
+          acquereur:   clientNom,
+        })
+      } else {
+        // Véhicule absent du LDP → on l'ajoute comme vendu
+        addLdpEntry({
+          marque:      selectedVehicle.marque,
+          modele:      selectedVehicle.modele,
+          plaque:      selectedVehicle.plaque,
+          vin:         selectedVehicle.vin || '',
+          dateEntree:  date,
+          prixAchat:   0,
+          fournisseur: '',
+          statut:      'vendu',
+          prixCession: Number(prix) || 0,
+          dateSortie:  date,
+          acquereur:   clientNom,
+        })
+      }
+    }
   }
 
   const handleReset = () => {
@@ -543,7 +582,8 @@ export default function NewSale() {
                     ].map(f => (
                       <input key={f.key} type="text" placeholder={f.placeholder}
                         value={newClientForm[f.key]}
-                        onChange={e => setNewClientForm(p => ({ ...p, [f.key]: e.target.value }))}
+                        onChange={e => setNewClientForm(p => ({ ...p, [f.key]: f.key === 'telephone' ? formatTelephone(e.target.value) : e.target.value }))}
+                        maxLength={f.key === 'telephone' ? 14 : undefined}
                         className="sea-input" />
                     ))}
                   </div>
@@ -1058,7 +1098,9 @@ export default function NewSale() {
           setDocs={setGeneratedDocs}
           date={date}
           clientName={selectedClient ? `${selectedClient.prenom || ''} ${selectedClient.nom || ''}`.trim() : ''}
+          clientEmail={selectedClient?.email || ''}
           vehicleLabel={selectedVehicle ? `${selectedVehicle.marque} ${selectedVehicle.modele}` : ''}
+          garageName={user?.garageName || 'Mon Garage'}
           onClose={() => setShowDocsModal(false)}
         />
       )}
@@ -1073,10 +1115,169 @@ function openHtmlDoc(html) {
 }
 
 // ── Modale dossier documents ──────────────────────────────────────────────────
-function DocsModal({ docs, setDocs, date, clientName, vehicleLabel, onClose }) {
+function SignatureModal({ clientName, onSave, onClose }) {
+  const canvasRef = useRef(null)
+  const drawing = useRef(false)
+  const [isEmpty, setIsEmpty] = useState(true)
+
+  const getPos = (e, canvas) => {
+    const rect = canvas.getBoundingClientRect()
+    const src = e.touches ? e.touches[0] : e
+    return { x: src.clientX - rect.left, y: src.clientY - rect.top }
+  }
+
+  const startDraw = useCallback((e) => {
+    e.preventDefault()
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    const { x, y } = getPos(e, canvas)
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    drawing.current = true
+  }, [])
+
+  const draw = useCallback((e) => {
+    e.preventDefault()
+    if (!drawing.current) return
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    ctx.strokeStyle = '#131d2e'
+    ctx.lineWidth = 2.5
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    const { x, y } = getPos(e, canvas)
+    ctx.lineTo(x, y)
+    ctx.stroke()
+    setIsEmpty(false)
+  }, [])
+
+  const stopDraw = useCallback(() => { drawing.current = false }, [])
+
+  const clear = () => {
+    const canvas = canvasRef.current
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
+    setIsEmpty(true)
+  }
+
+  const save = () => {
+    if (isEmpty) return
+    const dataUrl = canvasRef.current.toDataURL('image/png')
+    onSave(dataUrl)
+  }
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    canvas.addEventListener('touchstart', startDraw, { passive: false })
+    canvas.addEventListener('touchmove', draw, { passive: false })
+    canvas.addEventListener('touchend', stopDraw)
+    return () => {
+      canvas.removeEventListener('touchstart', startDraw)
+      canvas.removeEventListener('touchmove', draw)
+      canvas.removeEventListener('touchend', stopDraw)
+    }
+  }, [startDraw, draw, stopDraw])
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 10001, background: 'rgba(6,13,31,0.75)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 520, boxShadow: '0 32px 80px rgba(6,13,31,0.4)', overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid #dce4e8', background: '#f4f8fa', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <p style={{ fontWeight: 800, fontSize: 16, color: '#131d2e', margin: 0 }}>Signature client</p>
+            <p style={{ fontSize: 12, color: '#8fa5b5', margin: '2px 0 0' }}>{clientName} — signez dans le cadre ci-dessous</p>
+          </div>
+          <button onClick={onClose} style={{ width: 34, height: 34, borderRadius: 10, background: '#dce4e8', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f6272' }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Canvas */}
+        <div style={{ padding: '20px 24px' }}>
+          <div style={{ border: '2px dashed #b3d4e8', borderRadius: 14, overflow: 'hidden', background: '#fafcfe', position: 'relative', cursor: 'crosshair' }}>
+            <canvas
+              ref={canvasRef}
+              width={468}
+              height={200}
+              onMouseDown={startDraw}
+              onMouseMove={draw}
+              onMouseUp={stopDraw}
+              onMouseLeave={stopDraw}
+              style={{ display: 'block', width: '100%', height: 200, touchAction: 'none' }}
+            />
+            {isEmpty && (
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                <p style={{ color: '#b3d4e8', fontSize: 14, fontWeight: 500 }}>Signez ici avec votre doigt ou la souris</p>
+              </div>
+            )}
+          </div>
+          <p style={{ fontSize: 11, color: '#8fa5b5', margin: '8px 0 0', textAlign: 'center' }}>
+            Lu et approuvé — {clientName} — {new Date().toLocaleDateString('fr-FR')}
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '0 24px 20px', display: 'flex', gap: 10 }}>
+          <button onClick={clear} style={{ flex: 1, padding: '10px', borderRadius: 12, background: '#f4f8fa', border: '1px solid #dce4e8', color: '#4f6272', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <RotateCcw size={14} /> Effacer
+          </button>
+          <button onClick={save} disabled={isEmpty} style={{ flex: 2, padding: '10px', borderRadius: 12, background: isEmpty ? '#e2e8f0' : '#2563EB', border: 'none', color: isEmpty ? '#94a3b8' : '#fff', fontWeight: 700, fontSize: 14, cursor: isEmpty ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <Check size={14} /> Valider la signature
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DocsModal({ docs, setDocs, date, clientName, clientEmail, vehicleLabel, garageName, onClose }) {
   const [renaming, setRenaming] = useState(null)
   const [renameVal, setRenameVal] = useState('')
   const [zipping, setZipping] = useState(false)
+  const [showSignature, setShowSignature] = useState(false)
+  const [signatureDataUrl, setSignatureDataUrl] = useState(null)
+  const [sending, setSending] = useState(false)
+  const [sendDone, setSendDone] = useState(false)
+  const [sendEmail, setSendEmail] = useState(clientEmail || '')
+
+  const handleSend = async () => {
+    if (!sendEmail || sending) return
+    setSending(true)
+    try {
+      // Convertir tous les blobUrl en base64
+      const docsBase64 = await Promise.all(
+        docs.filter(d => d.blobUrl).map(async (doc) => {
+          const res = await fetch(doc.blobUrl)
+          const blob = await res.blob()
+          return new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve({
+              name: doc.name,
+              base64: reader.result.split(',')[1],
+              mimeType: 'application/pdf',
+            })
+            reader.readAsDataURL(blob)
+          })
+        })
+      )
+
+      await callN8N('send_documents', {
+        to:           sendEmail,
+        subject:      `Votre dossier de vente — ${garageName}`,
+        garage_name:  garageName,
+        client_name:  clientName,
+        vehicule:     vehicleLabel,
+        date,
+        documents:    docsBase64,
+      })
+
+      setSendDone(true)
+    } catch (err) {
+      console.error('Send error:', err)
+      alert('Erreur lors de l\'envoi. Vérifiez votre connexion N8N.')
+    } finally {
+      setSending(false)
+    }
+  }
 
   // Initiales + véhicule pour les noms de fichiers
   const initiales = clientName
@@ -1220,11 +1421,62 @@ function DocsModal({ docs, setDocs, date, clientName, vehicleLabel, onClose }) {
           ))}
         </div>
 
-        {/* Footer */}
-        <div style={{ padding: '16px 24px', borderTop: '1px solid #dce4e8', background: '#f4f8fa', display: 'flex', justifyContent: 'center' }}>
-          <p style={{ fontSize: 11, color: '#8fa5b5', margin: 0 }}>Double-clic sur un nom pour le renommer · La suppression est locale</p>
+        {/* Footer — envoi email */}
+        <div style={{ padding: '14px 24px', borderTop: '1px solid #dce4e8', background: '#f4f8fa' }}>
+          {sendDone ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, background: '#f0fdf4', border: '1px solid #86efac' }}>
+              <Check size={14} style={{ color: '#16a34a' }} />
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#16a34a', margin: 0 }}>Dossier envoyé à {sendEmail}</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                value={sendEmail}
+                onChange={e => setSendEmail(e.target.value)}
+                placeholder="Email du client"
+                style={{ flex: 1, padding: '8px 12px', borderRadius: 10, border: '1.5px solid #dce4e8', fontSize: 13, outline: 'none', background: '#fff', color: '#131d2e' }}
+                onFocus={e => e.target.style.borderColor = '#2563EB'}
+                onBlur={e => e.target.style.borderColor = '#dce4e8'}
+              />
+              <button onClick={handleSend} disabled={!sendEmail || sending}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 10, background: (!sendEmail || sending) ? '#c8d6de' : '#2563EB', color: '#fff', border: 'none', cursor: (!sendEmail || sending) ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' }}>
+                {sending
+                  ? <><div style={{ width: 13, height: 13, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Envoi…</>
+                  : <><Send size={13} /> Envoyer au client</>
+                }
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Footer — actions */}
+        <div style={{ padding: '12px 24px', borderTop: '1px solid #dce4e8', background: '#f4f8fa', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <p style={{ fontSize: 11, color: '#8fa5b5', margin: 0 }}>Double-clic pour renommer · La suppression est locale</p>
+          <button onClick={() => setShowSignature(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 10, border: signatureDataUrl ? '1.5px solid #16a34a' : '1.5px solid #2563EB', background: signatureDataUrl ? '#f0fdf4' : '#eff6ff', color: signatureDataUrl ? '#16a34a' : '#2563EB', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            {signatureDataUrl ? <><Check size={13} /> Signé</> : <><Shield size={13} /> Faire signer</>}
+          </button>
+        </div>
+
+        {signatureDataUrl && (
+          <div style={{ padding: '12px 24px', borderTop: '1px solid #dcfce7', background: '#f0fdf4', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <img src={signatureDataUrl} alt="Signature" style={{ height: 40, borderRadius: 6, border: '1px solid #bbf7d0', background: '#fff', padding: 4 }} />
+            <div>
+              <p style={{ fontSize: 12, fontWeight: 700, color: '#16a34a', margin: 0 }}>Signature enregistrée</p>
+              <p style={{ fontSize: 11, color: '#4ade80', margin: 0 }}>{clientName} · {new Date().toLocaleDateString('fr-FR')}</p>
+            </div>
+            <button onClick={() => setSignatureDataUrl(null)} style={{ marginLeft: 'auto', padding: '4px 10px', borderRadius: 8, background: 'transparent', border: '1px solid #86efac', color: '#16a34a', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>Modifier</button>
+          </div>
+        )}
       </div>
+
+      {showSignature && (
+        <SignatureModal
+          clientName={clientName}
+          onSave={(dataUrl) => { setSignatureDataUrl(dataUrl); setShowSignature(false) }}
+          onClose={() => setShowSignature(false)}
+        />
+      )}
     </div>
   )
 }

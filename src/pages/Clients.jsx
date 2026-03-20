@@ -172,7 +172,7 @@ export default function Clients() {
                   </div>
                   <div>
                     <p className="font-bold text-sm mb-1" style={{ color: '#131d2e' }}>{client.nom}</p>
-                    {client.cni ? (
+                    {(client.cni && client.cniFile) ? (
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-semibold px-2 py-0.5 rounded-lg"
                           style={{ background: '#e6f4ea', color: '#2e7d32', border: '1px solid #a5d6a7' }}>
