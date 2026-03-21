@@ -287,6 +287,15 @@ export default function LivreDePolice() {
                   </p>
                 </div>
               )}
+              {addForm.marque && addForm.modele && (
+                <PriceEstimator
+                  marque={addForm.marque}
+                  modele={addForm.modele}
+                  annee={addForm.annee}
+                  km={addForm.km}
+                  carburant={addForm.carburant}
+                />
+              )}
             </div>
             <div className="p-6 border-t space-y-2" style={{ borderColor: '#c8d6de' }}>
               <button onClick={handleAdd}

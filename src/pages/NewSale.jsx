@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase'
 import { formatTelephone } from '../lib/formatters'
 import { useLivreDePolice } from '../context/LivreDePoliceContext'
 import Confetti from '../components/Confetti'
+import PriceEstimator from '../components/PriceEstimator'
 
 const DOCS = {
   france: ['Facture de vente', 'Bon de commande', 'Bon de livraison', 'CERFA 15776', 'Certificat de cession', 'Certificat de situation administrative', 'Garantie commerciale', "Déclaration d'achat"],
@@ -903,6 +904,16 @@ export default function NewSale() {
                     <p className="text-xs" style={{ color: '#8fa5b5' }}>{t.desc}</p>
                   </button>
                 ))}
+              </div>
+
+              <div className="mb-4">
+                <PriceEstimator
+                  marque={selectedVehicle?.marque}
+                  modele={selectedVehicle?.modele}
+                  annee={selectedVehicle?.annee}
+                  km={selectedVehicle?.km}
+                  carburant={selectedVehicle?.carburant}
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
