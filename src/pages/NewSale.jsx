@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Check, ChevronRight, User, Car, FileText, Zap, Search, CheckCircle, Euro, Calendar, CreditCard, Shield, RotateCcw, UserPlus, X, Download, Send, Eye, Camera, Hash, Loader, Upload, ShieldCheck } from 'lucide-react'
 import { useClients } from '../context/ClientsContext'
-import { useVehicles } from '../context/VehiclesContext'
 import { useUser } from '../context/UserContext'
 import { useToast } from '../components/Toast'
 import DocumentPreview from '../components/DocumentPreview'
@@ -165,8 +164,24 @@ function LiveDocPreview({ client, vehicle, prix, date, paiement, garantie, saleT
 export default function NewSale() {
   const { showToast } = useToast()
   const { clients, addClient } = useClients()
-  const { vehicles } = useVehicles()
   const { entries: ldpEntries, addEntry: addLdpEntry, updateEntry: updateLdpEntry } = useLivreDePolice()
+
+  // Véhicules disponibles = LDP avec statut 'stock' uniquement
+  const ldpVehicles = (ldpEntries || [])
+    .filter(e => e.statut === 'stock')
+    .map(e => ({
+      id:          e.id,
+      marque:      e.marque      || '',
+      modele:      e.modele      || '',
+      plaque:      e.plaque      || '',
+      vin:         e.vin         || '',
+      annee:       e.annee       || '',
+      km:          e.km          || 0,
+      carburant:   e.carburant   || '',
+      prixAchat:   e.prixAchat   || 0,
+      fournisseur: e.fournisseur || '',
+      statut:      'En stock',
+    }))
   const user = useUser()
   const cgInputRef = useRef(null)
 
@@ -206,12 +221,10 @@ export default function NewSale() {
     c.nom.toLowerCase().includes(clientSearch.toLowerCase()) ||
     c.email.toLowerCase().includes(clientSearch.toLowerCase())
   )
-  const filteredVehicles = vehicles.filter(v =>
-    v.statut === 'En stock' && (
-      v.plaque.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
-      v.marque.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
-      v.modele.toLowerCase().includes(vehicleSearch.toLowerCase())
-    )
+  const filteredVehicles = ldpVehicles.filter(v =>
+    v.plaque.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
+    v.marque.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
+    v.modele.toLowerCase().includes(vehicleSearch.toLowerCase())
   )
 
   const handleTypeChange = (type) => { setSaleType(type); setSelectedDocs({}); setDocProgress({}); setAllGenerated(false) }
@@ -743,12 +756,19 @@ export default function NewSale() {
                 )}
               </div>
 
-              {/* Accès rapide véhicules */}
-              {!vehicleSearch && !selectedVehicle && vehicles.filter(v => v.statut === 'En stock').length > 0 && (
+              {/* Accès rapide véhicules — depuis LDP */}
+              {!vehicleSearch && !selectedVehicle && ldpVehicles.length === 0 && (
+                <div className="mt-4 p-4 rounded-xl text-center fade-in" style={{ background: '#f4f8fa', border: '1.5px dashed #c8d6de' }}>
+                  <Car size={24} style={{ color: '#c8d6de', margin: '0 auto 8px' }} />
+                  <p className="text-sm font-semibold" style={{ color: '#8fa5b5' }}>Aucun véhicule en stock</p>
+                  <p className="text-xs mt-1" style={{ color: '#aab8c4' }}>Ajoutez des véhicules dans le Livre de Police</p>
+                </div>
+              )}
+              {!vehicleSearch && !selectedVehicle && ldpVehicles.length > 0 && (
                 <div className="mt-4 fade-in">
-                  <p className="text-xs font-bold uppercase tracking-wider mb-2.5" style={{ color: '#8fa5b5' }}>Stock disponible</p>
+                  <p className="text-xs font-bold uppercase tracking-wider mb-2.5" style={{ color: '#8fa5b5' }}>Stock disponible · {ldpVehicles.length} véhicule{ldpVehicles.length > 1 ? 's' : ''}</p>
                   <div className="grid grid-cols-1 gap-2">
-                    {vehicles.filter(v => v.statut === 'En stock').slice(0, 4).map(v => (
+                    {ldpVehicles.slice(0, 5).map(v => (
                       <button key={v.id} onClick={() => { setSelectedVehicle(v); setVehicleSearch(`${v.marque} ${v.modele}`) }}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all"
                         style={{ background: '#f4f8fa', border: '1.5px solid #dce4e8' }}
@@ -759,14 +779,16 @@ export default function NewSale() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold truncate" style={{ color: '#131d2e' }}>{v.marque} {v.modele}</p>
-                          <p className="text-xs truncate" style={{ color: '#8fa5b5' }}>{v.plaque} · {v.annee} · {v.km.toLocaleString()} km · {v.carburant}</p>
+                          <p className="text-xs truncate" style={{ color: '#8fa5b5' }}>
+                            {v.plaque}{v.annee ? ` · ${v.annee}` : ''}{v.km ? ` · ${v.km.toLocaleString()} km` : ''}{v.carburant ? ` · ${v.carburant}` : ''}
+                          </p>
                         </div>
                         <span className="text-xs font-bold px-2 py-1 rounded-lg shrink-0" style={{ background: '#e6f4ea', color: '#2e7d32', border: '1px solid #a5d6a7' }}>En stock</span>
                       </button>
                     ))}
                   </div>
-                  {vehicles.filter(v => v.statut === 'En stock').length > 4 && (
-                    <p className="text-xs mt-2 text-center" style={{ color: '#8fa5b5' }}>+{vehicles.filter(v => v.statut === 'En stock').length - 4} autres · utilisez la recherche</p>
+                  {ldpVehicles.length > 5 && (
+                    <p className="text-xs mt-2 text-center" style={{ color: '#8fa5b5' }}>+{ldpVehicles.length - 5} autres · utilisez la recherche</p>
                   )}
                 </div>
               )}
@@ -827,7 +849,9 @@ export default function NewSale() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-black text-sm" style={{ color: '#131d2e' }}>{selectedVehicle.marque} {selectedVehicle.modele}</p>
-                      <p className="text-xs mt-0.5" style={{ color: '#4f6272' }}>{selectedVehicle.plaque} · {selectedVehicle.annee} · {selectedVehicle.km.toLocaleString()} km · {selectedVehicle.carburant}</p>
+                      <p className="text-xs mt-0.5" style={{ color: '#4f6272' }}>
+                        {[selectedVehicle.plaque, selectedVehicle.annee, selectedVehicle.km ? `${selectedVehicle.km.toLocaleString()} km` : null, selectedVehicle.carburant].filter(Boolean).join(' · ')}
+                      </p>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
