@@ -681,7 +681,7 @@ export default function NewSale() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-lg font-black" style={{ color: '#131d2e' }}>Sélectionner un véhicule</h2>
-                  <p className="text-xs mt-0.5" style={{ color: '#8fa5b5' }}>{vehicles.filter(v => v.statut === 'En stock').length} véhicule{vehicles.filter(v => v.statut === 'En stock').length > 1 ? 's' : ''} en stock</p>
+                  <p className="text-xs mt-0.5" style={{ color: '#8fa5b5' }}>{ldpVehicles.length} véhicule{ldpVehicles.length > 1 ? 's' : ''} en stock</p>
                 </div>
                 {/* Scan CG button */}
                 <button
