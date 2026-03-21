@@ -31,13 +31,16 @@ Réponds UNIQUEMENT en JSON valide avec ce format exact, sans texte avant ou apr
       'X-Title': 'PVOI Copilote',
     },
     body: JSON.stringify({
-      model: 'perplexity/llama-3.1-sonar-large-128k-online',
+      model: 'perplexity/sonar-pro',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.2,
     }),
   })
 
-  if (!res.ok) throw new Error(`OpenRouter ${res.status}`)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err?.error?.message || `OpenRouter ${res.status}`)
+  }
 
   const data = await res.json()
   const raw = data.choices?.[0]?.message?.content || '{}'
