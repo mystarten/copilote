@@ -9,6 +9,7 @@ import { callN8N } from '../lib/n8n'
 import { supabase } from '../lib/supabase'
 import { formatTelephone } from '../lib/formatters'
 import { useLivreDePolice } from '../context/LivreDePoliceContext'
+import Confetti from '../components/Confetti'
 
 const DOCS = {
   france: ['Facture de vente', 'Bon de commande', 'Bon de livraison', 'CERFA 15776', 'Certificat de cession', 'Certificat de situation administrative', 'Garantie commerciale', "Déclaration d'achat"],
@@ -189,8 +190,10 @@ export default function NewSale() {
   const [generating, setGenerating] = useState(false)
   const [docProgress, setDocProgress] = useState({})
   const [allGenerated, setAllGenerated] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
   const [generatedDocs, setGeneratedDocs] = useState([])   // [{ name, blobUrl, size }]
   const [showDocsModal, setShowDocsModal] = useState(false)
+  const [shouldFocusSend, setShouldFocusSend] = useState(false)
   const [previewDoc, setPreviewDoc] = useState(null)
   // Nouvelles features
   const [scanning, setScanning] = useState(false)
@@ -286,7 +289,7 @@ export default function NewSale() {
     }, 600)
 
     try {
-      const response = await callN8N('generate_documents', {
+      const response = await callN8N(saleType, {
         date,
         type_vente: saleType,
         prix: Number(prix),
@@ -362,6 +365,7 @@ export default function NewSale() {
       selectedDocsList.forEach(d => { done[d] = 'done' })
       setDocProgress(done)
       setAllGenerated(true)
+      setShowConfetti(true)
       saveVente()
     } catch (err) {
       clearInterval(progressInterval)
@@ -371,6 +375,7 @@ export default function NewSale() {
       selectedDocsList.forEach(d => { done[d] = 'done' })
       setDocProgress(done)
       setAllGenerated(true)
+      setShowConfetti(true)
       saveVente()
     } finally {
       setGenerating(false)
@@ -441,6 +446,8 @@ export default function NewSale() {
   const dropStyle = { background: '#fff', border: '1.5px solid #c8d6de', borderRadius: 12, boxShadow: '0 8px 24px rgba(19,29,46,0.12)' }
 
   return (
+    <>
+    <Confetti active={showConfetti} onComplete={() => setShowConfetti(false)} />
     <div className="p-4 md:p-8 fade-in max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -1045,7 +1052,7 @@ export default function NewSale() {
                     style={{ background: '#2563EB', boxShadow: '0 4px 16px rgba(37,99,235,0.25)' }}>
                     <Eye size={17} /> Voir les documents ({generatedDocs.length})
                   </button>
-                  <button onClick={() => showToast(`Dossier envoyé à ${selectedClient?.email} ✅`)}
+                  <button onClick={() => { setShowDocsModal(true); setShouldFocusSend(true) }}
                     className="w-full text-sm font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors hover:bg-slate-50"
                     style={{ border: '1.5px solid #c8d6de', color: '#2d3f55', background: '#fff' }}>
                     <Send size={14} /> Envoyer au client
@@ -1101,10 +1108,12 @@ export default function NewSale() {
           clientEmail={selectedClient?.email || ''}
           vehicleLabel={selectedVehicle ? `${selectedVehicle.marque} ${selectedVehicle.modele}` : ''}
           garageName={user?.garageName || 'Mon Garage'}
-          onClose={() => setShowDocsModal(false)}
+          focusSend={shouldFocusSend}
+          onClose={() => { setShowDocsModal(false); setShouldFocusSend(false) }}
         />
       )}
     </div>
+    </>
   )
 }
 
@@ -1229,7 +1238,7 @@ function SignatureModal({ clientName, onSave, onClose }) {
   )
 }
 
-function DocsModal({ docs, setDocs, date, clientName, clientEmail, vehicleLabel, garageName, onClose }) {
+function DocsModal({ docs, setDocs, date, clientName, clientEmail, vehicleLabel, garageName, focusSend, onClose }) {
   const [renaming, setRenaming] = useState(null)
   const [renameVal, setRenameVal] = useState('')
   const [zipping, setZipping] = useState(false)
@@ -1238,6 +1247,13 @@ function DocsModal({ docs, setDocs, date, clientName, clientEmail, vehicleLabel,
   const [sending, setSending] = useState(false)
   const [sendDone, setSendDone] = useState(false)
   const [sendEmail, setSendEmail] = useState(clientEmail || '')
+  const emailInputRef = useRef(null)
+
+  useEffect(() => {
+    if (focusSend && emailInputRef.current) {
+      setTimeout(() => emailInputRef.current?.focus(), 100)
+    }
+  }, [focusSend])
 
   const handleSend = async () => {
     if (!sendEmail || sending) return
@@ -1431,6 +1447,7 @@ function DocsModal({ docs, setDocs, date, clientName, clientEmail, vehicleLabel,
           ) : (
             <div style={{ display: 'flex', gap: 8 }}>
               <input
+                ref={emailInputRef}
                 value={sendEmail}
                 onChange={e => setSendEmail(e.target.value)}
                 placeholder="Email du client"

@@ -15,6 +15,7 @@ import Stats from './pages/Stats'
 import Login from './pages/Login'
 import Onboarding from './pages/Onboarding'
 import { ToastProvider } from './components/Toast'
+import { ThemeProvider } from './context/ThemeContext'
 import { ClientsProvider } from './context/ClientsContext'
 import { LivreDePoliceProvider } from './context/LivreDePoliceContext'
 import { VehiclesProvider } from './context/VehiclesContext'
@@ -130,16 +131,19 @@ export default function App() {
   if (loading)              return <LoadingScreen />
 
   if (!user)                return (
-    <ToastProvider><Login /></ToastProvider>
+    <ThemeProvider><ToastProvider><Login /></ToastProvider></ThemeProvider>
   )
 
   if (!user.onboardingDone) return (
-    <ToastProvider>
-      <Onboarding user={user} onComplete={handleOnboardingComplete} />
-    </ToastProvider>
+    <ThemeProvider>
+      <ToastProvider>
+        <Onboarding user={user} onComplete={handleOnboardingComplete} />
+      </ToastProvider>
+    </ThemeProvider>
   )
 
   return (
+    <ThemeProvider>
     <ToastProvider>
       <UserProvider value={user}>
         <ClientsProvider userId={user.id} isDemo={user.isDemo}>
@@ -163,5 +167,6 @@ export default function App() {
         </ClientsProvider>
       </UserProvider>
     </ToastProvider>
+    </ThemeProvider>
   )
 }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, PlusCircle, BookOpen, LogOut, Building2, Users, CreditCard, Menu, X, BarChart2, Shield } from 'lucide-react'
+import { LayoutDashboard, PlusCircle, BookOpen, LogOut, Building2, Users, CreditCard, Menu, X, BarChart2, Shield, Moon, Sun } from 'lucide-react'
+import { useTheme } from '../context/ThemeContext'
 
 const navItems = [
   { path: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard'        },
@@ -14,6 +15,7 @@ const navItems = [
 export default function Navbar({ user, onLogout }) {
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { dark, toggle } = useTheme()
 
   return (
     <>
@@ -80,6 +82,16 @@ export default function Navbar({ user, onLogout }) {
             {user?.email?.[0]?.toUpperCase() || 'U'}
           </div>
           <span className="text-sm hidden xl:block" style={{ color: '#8fa5b5' }}>{user?.email}</span>
+        </button>
+
+        {/* Dark mode toggle */}
+        <button onClick={toggle}
+          className="hidden md:flex items-center justify-center w-9 h-9 rounded-xl transition-all shrink-0"
+          style={{ background: '#1e2d42', border: '1px solid #2d3f55' }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = '#2563EB'}
+          onMouseLeave={e => e.currentTarget.style.borderColor = '#2d3f55'}
+          title={dark ? 'Mode clair' : 'Mode sombre'}>
+          {dark ? <Sun size={15} style={{ color: '#f59e0b' }} /> : <Moon size={15} style={{ color: '#8fa5b5' }} />}
         </button>
 
         {/* Logout — desktop */}
