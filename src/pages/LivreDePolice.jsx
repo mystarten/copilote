@@ -3,6 +3,7 @@ import { Download, FileSpreadsheet, Plus, X, Check, Car, Hash, Calendar, Euro, B
 import { useToast } from '../components/Toast'
 import { useLivreDePolice } from '../context/LivreDePoliceContext'
 import { formatPlaque } from '../lib/formatters'
+import PriceEstimator from '../components/PriceEstimator'
 
 const emptyVehicle = {
   marque: '', modele: '', plaque: '', vin: '',
@@ -21,7 +22,7 @@ export default function LivreDePolice() {
 
   const vendus = entries.filter(v => v.statut === 'vendu')
   const enStock = entries.filter(v => v.statut === 'stock')
-  const totalAchats = entries.reduce((s, v) => s + v.prixAchat, 0)
+  const totalAchats = entries.reduce((s, v) => s + (v.prixAchat ?? 0), 0)
   const totalCessions = vendus.reduce((s, v) => s + (v.prixCession || 0), 0)
   const marge = totalCessions - totalAchats
 
@@ -198,7 +199,7 @@ export default function LivreDePolice() {
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide mb-0.5" style={{ color: '#8fa5b5' }}>Prix achat</p>
-                <p className="text-sm font-bold" style={{ color: '#2d3f55' }}>{entry.prixAchat.toLocaleString()} €</p>
+                <p className="text-sm font-bold" style={{ color: '#2d3f55' }}>{(entry.prixAchat ?? 0).toLocaleString()} €</p>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide mb-0.5" style={{ color: '#8fa5b5' }}>Fournisseur</p>
@@ -347,6 +348,15 @@ export default function LivreDePolice() {
                   </div>
                 ))}
               </div>
+
+              {/* Estimateur de prix */}
+              <PriceEstimator
+                marque={editForm.marque}
+                modele={editForm.modele}
+                annee={editForm.annee}
+                km={editForm.km}
+                carburant={editForm.carburant}
+              />
 
               {/* Statut */}
               <div>
