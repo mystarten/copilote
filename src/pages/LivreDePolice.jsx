@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { Download, FileSpreadsheet, Plus, X, Check, Car, Hash, Calendar, Euro, Building2, Pencil, Package, ShoppingCart, BarChart2, Globe, Share2, Camera, Trash2, ImagePlus } from 'lucide-react'
+import { Download, FileSpreadsheet, Plus, X, Check, Car, Hash, Calendar, Euro, Building2, Pencil, Package, ShoppingCart, BarChart2, Globe, Share2, Camera, Trash2, ImagePlus, Wand2, Loader } from 'lucide-react'
 import { useToast } from '../components/Toast'
 import { useLivreDePolice } from '../context/LivreDePoliceContext'
 import { useUser } from '../context/UserContext'
@@ -8,6 +8,7 @@ import { PAYS_CONFIG, formatPlaqueByPays } from '../lib/pays'
 import { getDefaultVehiclePhoto } from '../lib/vehiclePhoto'
 import { MAKES, getModels } from '../lib/vehicleData'
 import { uploadFile } from '../lib/supabase'
+import { lookupByPlaque, lookupByVin } from '../lib/autoways'
 
 const PAYS_LIST = Object.values(PAYS_CONFIG)
 
@@ -258,6 +259,7 @@ export default function LivreDePolice() {
   const [errors, setErrors] = useState({})
   const [showOptional, setShowOptional] = useState(false)
   const [imgErrors, setImgErrors] = useState({})
+  const [lookupLoading, setLookupLoading] = useState(false)
 
   const vendus = entries.filter(v => v.statut === 'vendu')
   const enStock = entries.filter(v => v.statut === 'stock')
@@ -369,6 +371,46 @@ export default function LivreDePolice() {
     })
     setEditDrawer(entry)
     setShowOptional(false)
+  }
+
+  // ── Auto-remplissage via AutoWays ──
+  const handleAutoFill = async (form, setForm) => {
+    const plaque = form.plaque?.trim()
+    const vin    = form.vin?.trim()
+    if (!plaque && !vin) {
+      showToast('Renseigne la plaque ou le VIN d\'abord', 'error'); return
+    }
+    setLookupLoading(true)
+    try {
+      const data = plaque
+        ? await lookupByPlaque(plaque, form.pays || 'FR')
+        : await lookupByVin(vin)
+      setForm(p => ({
+        ...p,
+        marque:       data.marque       || p.marque,
+        modele:       data.modele       || p.modele,
+        annee:        data.annee        || p.annee,
+        vin:          data.vin          || p.vin,
+        carburant:    data.carburant    || p.carburant,
+        puissance:    data.puissance    || p.puissance,
+        cylindree:    data.cylindree    || p.cylindree,
+        carrosserie:  data.carrosserie  || p.carrosserie,
+        couleur:      data.couleur      || p.couleur,
+        transmission: data.transmission || p.transmission,
+      }))
+      setShowOptional(true)
+      showToast(`${data.marque} ${data.modele} trouvé ✅`, 'success')
+      // Récupère aussi la photo Wikipedia si pas encore de photo
+      if (data.marque && data.modele) {
+        fetchCarPhoto(data.marque, data.modele).then(photo => {
+          if (photo) setForm(p => ({ ...p, photos: p.photos.length ? p.photos : [photo] }))
+        })
+      }
+    } catch (err) {
+      showToast(err.message || 'Véhicule non trouvé', 'error')
+    } finally {
+      setLookupLoading(false)
+    }
   }
 
   const handleDelete = (id, label) => {
@@ -643,6 +685,23 @@ export default function LivreDePolice() {
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
 
+              {/* ── Auto-remplissage AutoWays ── */}
+              <div style={{ padding: '12px 14px', borderRadius: 12, background: 'linear-gradient(135deg, #eff6ff, #f5f3ff)', border: '1.5px solid #c7d2fe', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <Wand2 size={16} style={{ color: '#4F46E5', flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#3730a3' }}>Auto-remplissage</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: '#6366f1' }}>Renseigne la plaque ou le VIN puis clique pour tout remplir automatiquement</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={lookupLoading}
+                  onClick={() => handleAutoFill(addForm, setAddForm)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: 'none', cursor: lookupLoading ? 'wait' : 'pointer', background: '#4F46E5', color: '#fff', fontSize: 12, fontWeight: 700, flexShrink: 0, opacity: lookupLoading ? 0.7 : 1 }}>
+                  {lookupLoading ? <Loader size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={13} />}
+                  {lookupLoading ? 'Recherche…' : 'Auto-remplir'}
+                </button>
+              </div>
+
               {/* Sélecteur pays */}
               <CountrySelector value={addForm.pays} onChange={(pays) => setAddForm(p => ({ ...p, pays, plaque: '' }))} />
 
@@ -782,6 +841,24 @@ export default function LivreDePolice() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
+
+              {/* ── Auto-remplissage AutoWays ── */}
+              <div style={{ padding: '12px 14px', borderRadius: 12, background: 'linear-gradient(135deg, #eff6ff, #f5f3ff)', border: '1.5px solid #c7d2fe', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <Wand2 size={16} style={{ color: '#4F46E5', flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#3730a3' }}>Auto-remplissage</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: '#6366f1' }}>Plaque ou VIN renseigné → tout se remplit automatiquement</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={lookupLoading}
+                  onClick={() => handleAutoFill(editForm, setEditForm)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: 'none', cursor: lookupLoading ? 'wait' : 'pointer', background: '#4F46E5', color: '#fff', fontSize: 12, fontWeight: 700, flexShrink: 0, opacity: lookupLoading ? 0.7 : 1 }}>
+                  {lookupLoading ? <Loader size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={13} />}
+                  {lookupLoading ? 'Recherche…' : 'Auto-remplir'}
+                </button>
+              </div>
+
               {/* Sélecteur pays */}
               <CountrySelector value={editForm.pays} onChange={(pays) => setEditForm(p => ({ ...p, pays }))} />
 
