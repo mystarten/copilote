@@ -385,21 +385,23 @@ export default function LivreDePolice() {
       const data = plaque
         ? await lookupByPlaque(plaque, form.pays || 'FR')
         : await lookupByVin(vin)
+      console.log('[AutoWays] résultat:', data)
       setForm(p => ({
         ...p,
-        marque:       data.marque       || p.marque,
-        modele:       data.modele       || p.modele,
-        annee:        data.annee        || p.annee,
-        vin:          data.vin          || p.vin,
-        carburant:    data.carburant    || p.carburant,
-        puissance:    data.puissance    || p.puissance,
-        cylindree:    data.cylindree    || p.cylindree,
-        carrosserie:  data.carrosserie  || p.carrosserie,
-        couleur:      data.couleur      || p.couleur,
-        transmission: data.transmission || p.transmission,
+        ...(data.marque       && { marque:       data.marque }),
+        ...(data.modele       && { modele:       data.modele }),
+        ...(data.annee        && { annee:        data.annee }),
+        ...(data.vin          && { vin:          data.vin }),
+        ...(data.carburant    && { carburant:    data.carburant }),
+        ...(data.puissance    && { puissance:    data.puissance }),
+        ...(data.cylindree    && { cylindree:    data.cylindree }),
+        ...(data.carrosserie  && { carrosserie:  data.carrosserie }),
+        ...(data.couleur      && { couleur:      data.couleur }),
+        ...(data.transmission && { transmission: data.transmission }),
       }))
       setShowOptional(true)
-      showToast(`${data.marque} ${data.modele} trouvé ✅`, 'success')
+      const label = [data.marque, data.modele].filter(Boolean).join(' ') || 'Véhicule'
+      showToast(`${label} trouvé ✅`, 'success')
       // Récupère aussi la photo Wikipedia si pas encore de photo
       if (data.marque && data.modele) {
         fetchCarPhoto(data.marque, data.modele).then(photo => {

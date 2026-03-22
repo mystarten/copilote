@@ -1,35 +1,39 @@
 /**
  * Auto Ways Network API
  * Base: https://app.auto-ways.net/api/
- * Doc:  https://app.swaggerhub.com/apis-docs/autowaysnetwork/AUTO-NOW/1.0.0
+ * Réponse: { data: { AWN_marque, AWN_modele, AWN_energie, ... } }
  */
 
 const BASE = 'https://app.auto-ways.net/api'
 const token = () => import.meta.env.VITE_AUTOWAYS_KEY
 
-/* ── Mapping champs API → champs form Copilote ── */
-function mapToForm(data) {
+/* ── Mapping AWN_ → champs form Copilote ── */
+function mapToForm(d) {
   return {
-    marque:       data.marque        || data.make         || '',
-    modele:       data.modele        || data.model        || '',
-    annee:        String(data.annee  || data.year         || data.date_mise_en_circulation?.slice(0, 4) || ''),
-    vin:          data.vin           || data.numero_serie || '',
-    carburant:    mapCarburant(data.carburant || data.energie || data.fuel || ''),
-    puissance:    data.puissance_ch  || data.puissance    || data.power_ch
-                    ? String(data.puissance_ch || data.puissance || data.power_ch) + (String(data.puissance_ch || '').includes('ch') ? '' : ' ch')
+    marque:       d.AWN_marque        || '',
+    modele:       d.AWN_modele        || d.AWN_version || '',
+    annee:        String(d.AWN_millesime || d.AWN_date_mise_circulation?.slice(0, 4) || ''),
+    vin:          d.AWN_VIN           || '',
+    carburant:    mapCarburant(d.AWN_energie || ''),
+    puissance:    d.AWN_puissance_chevaux
+                    ? `${d.AWN_puissance_chevaux} ch`
+                    : d.AWN_puissance_KW
+                    ? `${d.AWN_puissance_KW} kW`
                     : '',
-    cylindree:    data.cylindree     || data.displacement || '',
-    carrosserie:  data.carrosserie   || data.body_type    || '',
-    couleur:      data.couleur       || data.color        || '',
-    transmission: mapTransmission(data.transmission || data.boite || ''),
-    co2:          data.co2           ? String(data.co2)  : '',
+    cylindree:    d.AWN_cylindree_liters
+                    ? `${d.AWN_cylindree_liters}L`
+                    : '',
+    carrosserie:  d.AWN_carrosserie   || '',
+    couleur:      d.AWN_couleur       || '',
+    transmission: mapTransmission(d.AWN_type_boite_vites || ''),
+    co2:          d.AWN_co2           ? String(d.AWN_co2) : '',
   }
 }
 
 function mapCarburant(raw) {
   const r = (raw || '').toLowerCase()
-  if (r.includes('essence') || r.includes('gasoline') || r.includes('petrol') || r.includes('sp')) return 'Essence'
-  if (r.includes('diesel') || r.includes('gazole') || r.includes('go'))  return 'Diesel'
+  if (r.includes('essence') || r.includes('sp') || r.includes('petrol') || r.includes('gasoline')) return 'Essence'
+  if (r.includes('diesel') || r.includes('gazole') || r.includes('go')) return 'Diesel'
   if (r.includes('electr') || r.includes('bev'))  return 'Électrique'
   if (r.includes('hybride') || r.includes('hybrid')) return 'Hybride'
   if (r.includes('gpl') || r.includes('lpg'))     return 'GPL'
@@ -39,12 +43,12 @@ function mapCarburant(raw) {
 
 function mapTransmission(raw) {
   const r = (raw || '').toLowerCase()
-  if (r.includes('auto') || r.includes('cvt') || r.includes('dsg')) return 'Automatique'
-  if (r.includes('man') || r.includes('mec'))  return 'Manuelle'
+  if (r.includes('auto') || r.includes('cvt') || r.includes('dsg') || r === 'a') return 'Automatique'
+  if (r.includes('man') || r.includes('mec') || r === 'm') return 'Manuelle'
   return raw
 }
 
-/* ── Lookup par plaque FR ── */
+/* ── Lookup par plaque FR/ES/UK ── */
 export async function lookupByPlaque(plaque, pays = 'FR') {
   const key = token()
   if (!key) throw new Error('Clé API AutoWays manquante')
@@ -57,8 +61,11 @@ export async function lookupByPlaque(plaque, pays = 'FR') {
   if (res.status === 403) throw new Error('Token AutoWays invalide')
   if (!res.ok) throw new Error(`Erreur API (${res.status})`)
 
-  const data = await res.json()
-  return mapToForm(data)
+  const json = await res.json()
+  if (json.error) throw new Error(json.message || 'Véhicule non trouvé')
+
+  const d = json.data || json
+  return mapToForm(d)
 }
 
 /* ── Lookup par VIN ── */
@@ -73,8 +80,11 @@ export async function lookupByVin(vin) {
   if (res.status === 403) throw new Error('Token AutoWays invalide')
   if (!res.ok) throw new Error(`Erreur API (${res.status})`)
 
-  const data = await res.json()
-  return mapToForm(data)
+  const json = await res.json()
+  if (json.error) throw new Error(json.message || 'VIN non trouvé')
+
+  const d = json.data || json
+  return mapToForm(d)
 }
 
 /* ── Calcul prix carte grise ── */
