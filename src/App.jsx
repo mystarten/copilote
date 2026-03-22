@@ -14,6 +14,9 @@ import Settings from './pages/Settings'
 import Stats from './pages/Stats'
 import Login from './pages/Login'
 import Onboarding from './pages/Onboarding'
+import VehiclePublic from './pages/VehiclePublic'
+import Legal from './pages/Legal'
+import CookieBanner from './components/CookieBanner'
 import { ToastProvider } from './components/Toast'
 import { ThemeProvider } from './context/ThemeContext'
 import { ClientsProvider } from './context/ClientsContext'
@@ -128,6 +131,19 @@ export default function App() {
   }
 
   // ── Rendu ────────────────────────────────────────────────────────────────
+  // Routes publiques — accessibles sans connexion
+  const pub = window.location.pathname
+  if (pub.startsWith('/v/') || pub.startsWith('/legal')) {
+    return (
+      <ThemeProvider>
+        <Routes>
+          <Route path="/v/:id"  element={<VehiclePublic />} />
+          <Route path="/legal"  element={<Legal />} />
+        </Routes>
+      </ThemeProvider>
+    )
+  }
+
   if (loading)              return <LoadingScreen />
 
   if (!user)                return (
@@ -160,8 +176,10 @@ export default function App() {
               <Route path="/pricing"         element={<Pricing />} />
               <Route path="/stats"           element={<Stats />} />
               <Route path="/settings"        element={<Settings user={user} onUpdateUser={handleUpdateUser} />} />
+              <Route path="/legal"           element={<Legal />} />
             </Routes>
           </Layout>
+          <CookieBanner />
           </VehiclesProvider>
           </LivreDePoliceProvider>
         </ClientsProvider>

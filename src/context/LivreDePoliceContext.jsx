@@ -19,6 +19,16 @@ function dbToEntry(row) {
     acquereur:    row.acquereur     || '',
     prixCession:  row.prix_cession  ?? null,
     statut:       row.statut        || 'stock',
+    pays:         row.pays          || 'FR',
+    annee:        row.annee         || '',
+    km:           row.km            ?? null,
+    carburant:    row.carburant     || '',
+    puissance:    row.puissance     || '',
+    cylindree:    row.cylindree     || '',
+    carrosserie:  row.carrosserie   || '',
+    couleur:      row.couleur       || '',
+    transmission: row.transmission  || '',
+    photos:       row.photos        || [],
   }
 }
 
@@ -35,6 +45,16 @@ function entryToDb(entry, userId) {
     acquereur:    entry.acquereur   || '',
     prix_cession: entry.prixCession || null,
     statut:       entry.statut      || 'stock',
+    pays:         entry.pays        || 'FR',
+    annee:        entry.annee       || null,
+    km:           entry.km          || null,
+    carburant:    entry.carburant   || null,
+    puissance:    entry.puissance   || null,
+    cylindree:    entry.cylindree   || null,
+    carrosserie:  entry.carrosserie || null,
+    couleur:      entry.couleur     || null,
+    transmission: entry.transmission || null,
+    photos:       entry.photos      || [],
   }
   if (userId) row.user_id = userId
   return row

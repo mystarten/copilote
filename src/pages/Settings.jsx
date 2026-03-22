@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { Building2, User, CreditCard, Settings2, Check, Upload, X, Lock, Save, PenLine, RotateCcw } from 'lucide-react'
+import { Building2, User, CreditCard, Settings2, Check, Upload, X, Lock, Save, PenLine, RotateCcw, Download, Trash2, Shield } from 'lucide-react'
 import { formatSiret, formatTelephone, formatCodePostal } from '../lib/formatters'
 import { useToast } from '../components/Toast'
 import { useNavigate } from 'react-router-dom'
-import { uploadFile } from '../lib/supabase'
+import { uploadFile, supabase } from '../lib/supabase'
 
 const SECTIONS = [
   { id: 'garage',      label: 'Mon Garage',    icon: Building2  },
@@ -16,7 +16,7 @@ const SECTIONS = [
 const PLAN_INFO = {
   solo:   { label: 'Solo',   price: '79€/mois',   color: '#4f6272' },
   pro:    { label: 'Pro',    price: '149€/mois',  color: '#2563EB' },
-  reseau: { label: 'Réseau', price: '349€/mois',  color: '#2d3f55' },
+  reseau: { label: 'Réseau', price: '349€/mois',  color: 'var(--text-secondary)' },
 }
 
 const PLAN_FEATURES = {
@@ -161,6 +161,53 @@ export default function Settings({ user, onUpdateUser }) {
       : [...f.typesVentes, type],
   }))
 
+  const exportData = async () => {
+    try {
+      const [{ data: clients }, { data: vehicles }, { data: profile }] = await Promise.all([
+        supabase.from('clients').select('*').eq('user_id', user.id),
+        supabase.from('livre_de_police').select('*').eq('user_id', user.id),
+        supabase.from('profiles').select('*').eq('user_id', user.id).single(),
+      ])
+      const exportObj = {
+        exportDate: new Date().toISOString(),
+        user: { id: user.id, email: user.email },
+        profile,
+        clients: clients || [],
+        vehicles: vehicles || [],
+      }
+      const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `copilote-export-${new Date().toISOString().slice(0,10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      showToast('Export téléchargé', 'success')
+    } catch (err) {
+      showToast('Erreur lors de l\'export', 'error')
+    }
+  }
+
+  const requestDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      'Êtes-vous sûr de vouloir supprimer votre compte ?\n\nToutes vos données (clients, véhicules, ventes) seront définitivement effacées. Cette action est irréversible.'
+    )
+    if (!confirmed) return
+    const confirmed2 = window.confirm('Dernière confirmation : supprimer définitivement toutes mes données ?')
+    if (!confirmed2) return
+    try {
+      await Promise.all([
+        supabase.from('clients').delete().eq('user_id', user.id),
+        supabase.from('livre_de_police').delete().eq('user_id', user.id),
+        supabase.from('profiles').delete().eq('user_id', user.id),
+      ])
+      await supabase.auth.signOut()
+      showToast('Compte supprimé. Au revoir.', 'success')
+    } catch (err) {
+      showToast('Erreur lors de la suppression. Contactez le support.', 'error')
+    }
+  }
+
   const saveGarage = () => {
     onUpdateUser({ ...user, ...garage })
     showToast('Informations du garage sauvegardées', 'success')
@@ -190,7 +237,7 @@ export default function Settings({ user, onUpdateUser }) {
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold" style={{ color: '#131d2e' }}>Paramètres</h1>
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Paramètres</h1>
         <p className="text-sm mt-0.5" style={{ color: '#4f6272' }}>Gérez votre garage et votre compte</p>
       </div>
 
@@ -220,7 +267,7 @@ export default function Settings({ user, onUpdateUser }) {
           {/* ── Mon Garage ── */}
           {section === 'garage' && (
             <div>
-              <h2 className="text-lg font-bold mb-6" style={{ color: '#131d2e' }}>Informations du garage</h2>
+              <h2 className="text-lg font-bold mb-6" style={{ color: 'var(--text-primary)' }}>Informations du garage</h2>
 
               {/* Logo */}
               <div className="mb-6">
@@ -239,7 +286,7 @@ export default function Settings({ user, onUpdateUser }) {
                   }
                   <div className="flex flex-col gap-2">
                     <label className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg cursor-pointer transition-all"
-                      style={{ background: '#dce4e8', color: '#2d3f55', border: '1px solid #c8d6de' }}
+                      style={{ background: '#dce4e8', color: 'var(--text-secondary)', border: '1px solid #c8d6de' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#c8d6de'}
                       onMouseLeave={e => e.currentTarget.style.background = '#dce4e8'}>
                       <Upload size={12} /> Uploader un logo
@@ -313,7 +360,7 @@ export default function Settings({ user, onUpdateUser }) {
           {/* ── Ma Signature ── */}
           {section === 'signature' && (
             <div>
-              <h2 className="text-lg font-bold mb-1" style={{ color: '#131d2e' }}>Ma Signature</h2>
+              <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Ma Signature</h2>
               <p className="text-sm mb-6" style={{ color: '#8fa5b5' }}>
                 Votre signature sera automatiquement appliquée sur tous les documents générés. Dessinez-la une seule fois.
               </p>
@@ -396,7 +443,7 @@ export default function Settings({ user, onUpdateUser }) {
           {/* ── Mon Compte ── */}
           {section === 'compte' && (
             <div>
-              <h2 className="text-lg font-bold mb-6" style={{ color: '#131d2e' }}>Mon Compte</h2>
+              <h2 className="text-lg font-bold mb-6" style={{ color: 'var(--text-primary)' }}>Mon Compte</h2>
 
               <div className="space-y-4">
                 <div>
@@ -406,7 +453,7 @@ export default function Settings({ user, onUpdateUser }) {
                 </div>
 
                 <div className="pt-5 border-t" style={{ borderColor: '#c8d6de' }}>
-                  <p className="text-sm font-bold mb-4" style={{ color: '#131d2e' }}>Changer le mot de passe</p>
+                  <p className="text-sm font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Changer le mot de passe</p>
                   <div className="space-y-3">
                     <div>
                       <label className="text-xs font-bold uppercase tracking-wider mb-1.5 block" style={{ color: '#8fa5b5' }}>Mot de passe actuel</label>
@@ -432,13 +479,51 @@ export default function Settings({ user, onUpdateUser }) {
                 style={{ background: '#2563EB', boxShadow: '0 4px 14px rgba(37,99,235,0.25)' }}>
                 <Save size={14} /> Sauvegarder
               </button>
+
+              {/* ── RGPD ── */}
+              <div className="mt-8 pt-6 border-t" style={{ borderColor: 'var(--border, #c8d6de)' }}>
+                <div className="flex items-center gap-2 mb-4">
+                  <Shield size={16} style={{ color: 'var(--accent, #2563EB)' }} />
+                  <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary, #131d2e)' }}>Données personnelles (RGPD)</h3>
+                </div>
+
+                <p className="text-xs mb-4" style={{ color: 'var(--text-secondary, #8fa5b5)', lineHeight: 1.6 }}>
+                  Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et de suppression de vos données. Vous pouvez exporter l'ensemble de vos données ou demander la suppression de votre compte.
+                </p>
+
+                <div className="flex flex-wrap gap-3">
+                  <button onClick={exportData}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-80"
+                    style={{ background: 'var(--accent-light, #e8f4fb)', color: 'var(--accent, #2563EB)', border: '1px solid var(--accent, #2563EB)' }}>
+                    <Download size={14} /> Exporter mes données
+                  </button>
+
+                  <a href="/legal#confidentialite"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-80"
+                    style={{ background: 'var(--bg-input, #f4f8fa)', color: 'var(--text-secondary, #8fa5b5)', border: '1px solid var(--border, #c8d6de)', textDecoration: 'none' }}>
+                    Politique de confidentialité
+                  </a>
+                </div>
+
+                <div className="mt-4 p-3 rounded-xl" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                  <p className="text-xs font-semibold mb-1" style={{ color: '#EF4444' }}>Zone dangereuse</p>
+                  <p className="text-xs mb-3" style={{ color: 'var(--text-muted, #8fa5b5)' }}>
+                    La suppression de votre compte est irréversible. Toutes vos données (clients, véhicules, ventes) seront définitivement effacées.
+                  </p>
+                  <button onClick={requestDeleteAccount}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all hover:opacity-80"
+                    style={{ background: 'rgba(239,68,68,0.12)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.3)' }}>
+                    <Trash2 size={13} /> Supprimer mon compte et mes données
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
           {/* ── Abonnement ── */}
           {section === 'abonnement' && (
             <div>
-              <h2 className="text-lg font-bold mb-6" style={{ color: '#131d2e' }}>Abonnement</h2>
+              <h2 className="text-lg font-bold mb-6" style={{ color: 'var(--text-primary)' }}>Abonnement</h2>
 
               {/* Plan actuel */}
               <div className="p-5 rounded-xl mb-5"
@@ -449,7 +534,7 @@ export default function Settings({ user, onUpdateUser }) {
                       style={{ background: planInfo.color }}>
                       Plan actuel
                     </span>
-                    <span className="text-xl font-black" style={{ color: '#131d2e' }}>{planInfo.label}</span>
+                    <span className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>{planInfo.label}</span>
                   </div>
                   <span className="text-2xl font-black" style={{ color: '#2563EB' }}>{planInfo.price}</span>
                 </div>
@@ -471,7 +556,7 @@ export default function Settings({ user, onUpdateUser }) {
                 style={{ background: '#dce4e8', border: '1px solid #c8d6de' }}>
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider mb-0.5" style={{ color: '#8fa5b5' }}>Prochain renouvellement</p>
-                  <p className="font-semibold" style={{ color: '#131d2e' }}>19 Avril 2026</p>
+                  <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>19 Avril 2026</p>
                 </div>
                 <button className="text-xs font-semibold px-3 py-2 rounded-lg transition-all"
                   style={{ background: '#c8d6de', color: '#4f6272' }}
@@ -484,7 +569,7 @@ export default function Settings({ user, onUpdateUser }) {
               {/* Upgrade */}
               {plan !== 'reseau' && (
                 <div>
-                  <p className="text-sm font-bold mb-3" style={{ color: '#131d2e' }}>Passer au niveau supérieur</p>
+                  <p className="text-sm font-bold mb-3" style={{ color: 'var(--text-primary)' }}>Passer au niveau supérieur</p>
                   <button
                     onClick={() => navigate('/pricing')}
                     className="w-full flex items-center justify-between px-5 py-4 rounded-xl font-bold text-white transition-all hover:opacity-90"
@@ -502,7 +587,7 @@ export default function Settings({ user, onUpdateUser }) {
           {/* ── Préférences ── */}
           {section === 'preferences' && (
             <div>
-              <h2 className="text-lg font-bold mb-6" style={{ color: '#131d2e' }}>Préférences</h2>
+              <h2 className="text-lg font-bold mb-6" style={{ color: 'var(--text-primary)' }}>Préférences</h2>
 
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider mb-3 block" style={{ color: '#8fa5b5' }}>
@@ -535,7 +620,7 @@ export default function Settings({ user, onUpdateUser }) {
                         }
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-semibold" style={{ color: '#131d2e' }}>{t.label}</p>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t.label}</p>
                         <p className="text-xs" style={{ color: '#8fa5b5' }}>{t.desc}</p>
                       </div>
                       {t.locked && (

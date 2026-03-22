@@ -1,6 +1,32 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, uploadFile } from '../lib/supabase'
 import { initialClients } from '../data/mockData'
+
+// ── Convertit un base64 dataUrl en File uploadable ────────────────────────────
+function dataUrlToFile(dataUrl, filename = 'cni') {
+  const [header, base64] = dataUrl.split(',')
+  const mime = (header.match(/:(.*?);/) || [])[1] || 'application/octet-stream'
+  const ext  = mime.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'
+  const bytes = atob(base64)
+  const arr = new Uint8Array(bytes.length)
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i)
+  return new File([arr], `${filename}.${ext}`, { type: mime })
+}
+
+// ── Upload le CNI si c'est un base64 (pas encore sur Storage) ─────────────────
+async function uploadCniIfNeeded(cniFile, userId) {
+  if (!cniFile?.dataUrl) return null
+  if (cniFile.dataUrl.startsWith('http')) return cniFile.dataUrl   // déjà uploadé
+  if (!cniFile.dataUrl.startsWith('data:')) return null             // format inconnu
+  try {
+    const file = dataUrlToFile(cniFile.dataUrl, `cni_${Date.now()}`)
+    const url  = await uploadFile(userId, `cni/cni_${Date.now()}`, file)
+    return url
+  } catch (e) {
+    console.error('CNI upload error:', e)
+    return null
+  }
+}
 
 const ClientsContext = createContext(null)
 
@@ -60,16 +86,23 @@ export function ClientsProvider({ children, userId, isDemo = false }) {
     setClients(prev => [optimistic, ...prev])
 
     if (!isDemo && userId) {
+      // Upload CNI si base64
+      const cniUrl = await uploadCniIfNeeded(client.cniFile, userId)
+      const clientWithUrl = cniUrl
+        ? { ...client, cni: true, cniFile: { name: client.cniFile?.name || 'CNI', dataUrl: cniUrl, type: 'url' } }
+        : client
+
       const { data, error } = await supabase
         .from('clients')
-        .insert(clientToDb(client, userId))
+        .insert(clientToDb(clientWithUrl, userId))
         .select()
         .single()
 
       if (!error && data) {
-        // Remplace l'id temporaire par le vrai UUID Supabase
-        setClients(prev => prev.map(c => c.id === tempId ? { ...optimistic, id: data.id } : c))
-        return { ...optimistic, id: data.id }
+        // Remplace l'id temporaire par le vrai UUID Supabase + CNI URL
+        const final = { ...optimistic, id: data.id, ...(cniUrl ? { cni: true, cniFile: clientWithUrl.cniFile } : {}) }
+        setClients(prev => prev.map(c => c.id === tempId ? final : c))
+        return final
       } else {
         console.error('Client insert error:', error?.message)
       }
@@ -81,9 +114,16 @@ export function ClientsProvider({ children, userId, isDemo = false }) {
     setClients(prev => prev.map(c => c.id === id ? { ...c, ...data } : c))
 
     if (!isDemo && userId) {
+      // Upload CNI si base64
+      const cniUrl = await uploadCniIfNeeded(data.cniFile, userId)
+      const dataWithUrl = cniUrl
+        ? { ...data, cni: true, cniFile: { name: data.cniFile?.name || 'CNI', dataUrl: cniUrl, type: 'url' } }
+        : data
+      if (cniUrl) setClients(prev => prev.map(c => c.id === id ? { ...c, ...dataWithUrl } : c))
+
       const { error } = await supabase
         .from('clients')
-        .update(clientToDb(data))
+        .update(clientToDb(dataWithUrl))
         .eq('id', id)
         .eq('user_id', userId)
       if (error) console.error('Client update error:', error.message)

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { TrendingUp, FileText, Clock, AlertCircle, Eye, ChevronRight, X, Car, User, Calendar, CreditCard, Hash, Tag } from 'lucide-react'
+import { TrendingUp, FileText, Clock, AlertCircle, Eye, ChevronRight, X, Car, User, Calendar, CreditCard, Hash, Tag, Timer, TrendingDown } from 'lucide-react'
 import { mockSales } from '../data/mockData'
 import { useUser } from '../context/UserContext'
+import { useLivreDePolice } from '../context/LivreDePoliceContext'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
@@ -16,10 +17,37 @@ const statutMeta = {
   en_cours: { label: 'En cours', style: { background: '#fff8e1', color: '#b45309', border: '1px solid #fcd34d' } },
 }
 
+function daysInStock(dateStr) {
+  if (!dateStr) return 0
+  // Supporte formats ISO (2024-03-15) et FR (15/03/2024)
+  let d
+  if (dateStr.includes('/')) {
+    const [day, month, year] = dateStr.split('/')
+    d = new Date(`${year}-${month}-${day}`)
+  } else {
+    d = new Date(dateStr)
+  }
+  if (isNaN(d)) return 0
+  return Math.floor((Date.now() - d.getTime()) / 86400000)
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const user = useUser()
+  const { entries: ldpEntries } = useLivreDePolice()
   const [selectedSale, setSelectedSale] = useState(null)
+
+  const stockEntries = (ldpEntries || [])
+    .filter(e => e.statut === 'stock')
+    .map(e => ({ ...e, jours: daysInStock(e.dateEntree) }))
+    .sort((a, b) => b.jours - a.jours)
+    .slice(0, 5)
+
+  const topMarges = (ldpEntries || [])
+    .filter(e => e.statut === 'vendu' && e.prixCession && e.prixAchat)
+    .map(e => ({ ...e, marge: e.prixCession - e.prixAchat }))
+    .sort((a, b) => b.marge - a.marge)
+    .slice(0, 5)
 
   const [realSales, setRealSales] = useState([])
   useEffect(() => {
@@ -49,7 +77,7 @@ export default function Dashboard() {
     <div className="p-4 md:p-8 fade-in max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6 md:mb-8">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: '#131d2e' }}>Tableau de bord</h1>
+          <h1 className="text-2xl font-bold">Tableau de bord</h1>
           <p className="text-sm mt-0.5" style={{ color: '#4f6272' }}>
             {user?.isDemo ? 'Mode démo — données d\'exemple' : `Bienvenue, ${user?.garageName || 'votre garage'}`}
           </p>
@@ -72,7 +100,7 @@ export default function Dashboard() {
               <span className="text-sm font-medium" style={{ color: '#4f6272' }}>{card.label}</span>
               <card.icon size={17} style={{ color: card.iconColor }} />
             </div>
-            <p className="text-xl md:text-[32px] font-black mb-1.5" style={{ color: '#131d2e' }}>{card.value}</p>
+            <p className="text-xl md:text-[32px] font-black mb-1.5">{card.value}</p>
             <p className="text-xs" style={card.subStyle}>{card.sub}</p>
           </div>
         ))}
@@ -81,7 +109,7 @@ export default function Dashboard() {
       {/* Table */}
       <div className="sea-card overflow-x-auto">
         <div className="px-6 py-4 flex items-center justify-between border-b" style={{ borderColor: '#c8d6de' }}>
-          <h2 className="font-bold text-base" style={{ color: '#131d2e' }}>Dernières ventes</h2>
+          <h2 className="font-bold text-base">Dernières ventes</h2>
           {sales.length > 0 && (
             <button onClick={() => navigate('/livre-de-police')}
               className="flex items-center gap-1 text-xs font-semibold transition-colors"
@@ -98,7 +126,7 @@ export default function Dashboard() {
               style={{ background: '#e8f4fb' }}>
               <TrendingUp size={24} style={{ color: '#2563EB' }} />
             </div>
-            <p className="font-bold mb-1" style={{ color: '#131d2e' }}>Aucune vente pour le moment</p>
+            <p className="font-bold mb-1">Aucune vente pour le moment</p>
             <p className="text-sm mb-5" style={{ color: '#8fa5b5' }}>
               Créez votre première vente pour générer vos documents PVOI en 4 minutes.
             </p>
@@ -137,7 +165,7 @@ export default function Dashboard() {
                         style={{ background: '#2d3f55' }}>
                         {clientName[0]?.toUpperCase() || '?'}
                       </div>
-                      <span className="text-sm font-semibold" style={{ color: '#131d2e' }}>{clientName}</span>
+                      <span className="text-sm font-semibold">{clientName}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm" style={{ color: '#4f6272' }}>{vehiculeLabel}</td>
@@ -168,6 +196,65 @@ export default function Dashboard() {
         )}
       </div>
 
+      {/* Radar Rentabilité */}
+      {(stockEntries.length > 0 || topMarges.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
+
+          {/* Véhicules qui dorment */}
+          {stockEntries.length > 0 && (
+            <div className="sea-card overflow-hidden">
+              <div className="px-6 py-4 flex items-center gap-2 border-b" style={{ borderColor: '#c8d6de' }}>
+                <Timer size={15} style={{ color: '#b45309' }} />
+                <h2 className="font-bold text-sm">Véhicules en stock</h2>
+              </div>
+              <div className="divide-y" style={{ '--tw-divide-opacity': 1 }}>
+                {stockEntries.map(entry => {
+                  const j = entry.jours
+                  const color = j > 60 ? '#dc2626' : j > 30 ? '#b45309' : '#2e7d32'
+                  const bg    = j > 60 ? '#fee2e2' : j > 30 ? '#fff8e1' : '#dcfce7'
+                  return (
+                    <div key={entry.id} className="px-6 py-3 flex items-center justify-between"
+                      style={{ borderColor: '#c8d6de' }}>
+                      <div>
+                        <p className="text-sm font-bold">{entry.marque} {entry.modele}</p>
+                        <p className="text-xs" style={{ color: '#8fa5b5' }}>{entry.plaque}</p>
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 800, padding: '3px 10px', borderRadius: 20, background: bg, color }}>
+                        {j === 0 ? 'Aujourd\'hui' : `${j} j`}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Meilleures marges */}
+          {topMarges.length > 0 && (
+            <div className="sea-card overflow-hidden">
+              <div className="px-6 py-4 flex items-center gap-2 border-b" style={{ borderColor: '#c8d6de' }}>
+                <TrendingDown size={15} style={{ color: '#2563EB' }} />
+                <h2 className="font-bold text-sm">Meilleures marges</h2>
+              </div>
+              <div className="divide-y">
+                {topMarges.map(entry => (
+                  <div key={entry.id} className="px-6 py-3 flex items-center justify-between"
+                    style={{ borderColor: '#c8d6de' }}>
+                    <div>
+                      <p className="text-sm font-bold">{entry.marque} {entry.modele}</p>
+                      <p className="text-xs" style={{ color: '#8fa5b5' }}>{entry.acquereur || entry.plaque}</p>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: entry.marge >= 0 ? '#16a34a' : '#dc2626' }}>
+                      {entry.marge >= 0 ? '+' : ''}{entry.marge.toLocaleString()} €
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Drawer détail vente */}
       {selectedSale && (() => {
         const s = {
@@ -188,7 +275,7 @@ export default function Dashboard() {
             style={{ background: '#eef2f5', borderLeft: '1px solid #c8d6de' }}>
             <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: '#c8d6de' }}>
               <div>
-                <h2 className="font-bold text-lg" style={{ color: '#131d2e' }}>Détail de la vente</h2>
+                <h2 className="font-bold text-lg">Détail de la vente</h2>
                 <p className="text-xs mt-0.5" style={{ color: '#8fa5b5' }}>{s.date}</p>
               </div>
               <button onClick={() => setSelectedSale(null)}
@@ -209,7 +296,7 @@ export default function Dashboard() {
                     style={{ background: '#2d3f55' }}>
                     {s.client[0]?.toUpperCase() || '?'}
                   </div>
-                  <p className="font-bold" style={{ color: '#131d2e' }}>{s.client}</p>
+                  <p className="font-bold">{s.client}</p>
                 </div>
               </div>
 
@@ -217,7 +304,7 @@ export default function Dashboard() {
                 <p className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: '#8fa5b5' }}>
                   <Car size={11} /> Véhicule
                 </p>
-                <p className="font-bold" style={{ color: '#131d2e' }}>{s.vehicule}</p>
+                <p className="font-bold">{s.vehicule}</p>
               </div>
 
               <div className="p-4 rounded-xl space-y-3" style={{ background: '#dce4e8', border: '1px solid #c8d6de' }}>
@@ -239,7 +326,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: '#8fa5b5' }}>Date</p>
-                    <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: '#131d2e' }}>
+                    <p className="text-sm font-semibold flex items-center gap-1.5">
                       <Calendar size={12} style={{ color: '#8fa5b5' }} /> {s.date}
                     </p>
                   </div>
@@ -252,7 +339,7 @@ export default function Dashboard() {
                   {s.paiement && (
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: '#8fa5b5' }}>Paiement</p>
-                      <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: '#131d2e' }}>
+                      <p className="text-sm font-semibold flex items-center gap-1.5">
                         <CreditCard size={12} style={{ color: '#8fa5b5' }} /> {s.paiement}
                       </p>
                     </div>

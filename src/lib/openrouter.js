@@ -4,12 +4,20 @@ export async function estimatePrix({ marque, modele, annee, km, carburant }) {
   if (!API_KEY) throw new Error('VITE_OPENROUTER_KEY manquante dans .env')
 
   const kmStr = km ? `${Number(km).toLocaleString('fr-FR')} km` : 'kilométrage non précisé'
+  const anneeStr = annee ? String(annee) : null
+  const ageStr = anneeStr ? ` (${new Date().getFullYear() - parseInt(anneeStr)} ans)` : ''
+
   const prompt = `Tu es un expert en évaluation de véhicules d'occasion en France.
 
-Recherche la cote actuelle de ce véhicule sur le marché français (LeBonCoin, LaCentrale, AutoScout24, etc.) :
-- Marque / Modèle : ${marque} ${modele}${annee ? ` (${annee})` : ''}
+Recherche la cote ACTUELLE de ce véhicule sur le marché français (LeBonCoin, LaCentrale, AutoScout24, La Centrale, Aramisauto) en ${new Date().getFullYear()} :
+
+Véhicule :
+- Marque / Modèle : ${marque} ${modele}
+- Année de mise en circulation : ${anneeStr ? `${anneeStr}${ageStr}` : 'non précisée'}
 - Kilométrage : ${kmStr}
 - Carburant : ${carburant || 'non précisé'}
+
+IMPORTANT : L'année est un critère majeur de dépréciation. Adapte précisément les prix en fonction de l'âge du véhicule et du kilométrage. Un véhicule de ${anneeStr || 'cette année'} avec ${kmStr} a une valeur très différente d'un modèle plus récent ou plus ancien.
 
 Réponds UNIQUEMENT en JSON valide avec ce format exact, sans texte avant ou après :
 {
@@ -31,7 +39,7 @@ Réponds UNIQUEMENT en JSON valide avec ce format exact, sans texte avant ou apr
       'X-Title': 'PVOI Copilote',
     },
     body: JSON.stringify({
-      model: 'perplexity/sonar-pro',
+      model: 'perplexity/sonar-pro-search',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.2,
     }),

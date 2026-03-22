@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, PlusCircle, BookOpen, LogOut, Building2, Users, CreditCard, Menu, X, BarChart2, Shield, Moon, Sun } from 'lucide-react'
+import { LayoutDashboard, PlusCircle, BookOpen, LogOut, Building2, Users, CreditCard, Menu, X, BarChart2, Shield, Moon, Sun, FileText } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 
 const navItems = [
@@ -151,6 +151,14 @@ export default function Navbar({ user, onLogout }) {
             ))}
 
             <div className="flex-1" />
+
+            {/* Mentions légales */}
+            <NavLink to="/legal" onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold"
+              style={{ color: '#8fa5b5' }}>
+              <FileText size={17} />
+              Mentions légales
+            </NavLink>
 
             {/* Logout */}
             <button onClick={() => { onLogout(); setMobileOpen(false) }}

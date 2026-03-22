@@ -102,10 +102,10 @@ export default function Pricing() {
 
         {/* ── Hero ── */}
         <div className="text-center mb-12">
-          <h1 className="text-2xl md:text-4xl font-black mb-4 leading-tight" style={{ color: '#131d2e' }}>
+          <h1 className="text-2xl md:text-4xl font-black mb-4 leading-tight" style={{ color: 'var(--text-primary)' }}>
             Finissez avec la paperasse.<br />Pour de bon.
           </h1>
-          <p className="text-base md:text-lg font-medium max-w-xl mx-auto" style={{ color: '#4f6272' }}>
+          <p className="text-base md:text-lg font-medium max-w-xl mx-auto" style={{ color: 'var(--text-secondary)' }}>
             Copilote génère tous vos documents PVOI en 4 minutes.
             Conforme, horodaté, sans stress.
           </p>
@@ -159,18 +159,18 @@ export default function Pricing() {
 
               <div className="px-5 pb-5 md:px-7 md:pb-7">
                 {/* Name + subtitle */}
-                <h2 className="text-xl font-black mb-1" style={{ color: '#131d2e' }}>{plan.name}</h2>
-                <p className="text-xs font-medium mb-6" style={{ color: '#8fa5b5' }}>{plan.subtitle}</p>
+                <h2 className="text-xl font-black mb-1" style={{ color: 'var(--text-primary)' }}>{plan.name}</h2>
+                <p className="text-xs font-medium mb-6" style={{ color: 'var(--text-muted)' }}>{plan.subtitle}</p>
 
                 {/* Price */}
                 <div className="flex items-end gap-1 mb-1">
-                  <span className="text-3xl md:text-5xl font-black" style={{ color: '#131d2e' }}>
+                  <span className="text-3xl md:text-5xl font-black" style={{ color: 'var(--text-primary)' }}>
                     {annual ? plan.priceAnnual : plan.priceMonthly}€
                   </span>
-                  <span className="text-sm mb-2.5 font-medium" style={{ color: '#8fa5b5' }}>/mois</span>
+                  <span className="text-sm mb-2.5 font-medium" style={{ color: 'var(--text-muted)' }}>/mois</span>
                 </div>
                 {annual && (
-                  <p className="text-xs mb-5 font-medium" style={{ color: '#4f6272' }}>
+                  <p className="text-xs mb-5 font-medium" style={{ color: 'var(--text-secondary)' }}>
                     Facturé {plan.priceAnnual * 12}€/an
                   </p>
                 )}
@@ -180,7 +180,7 @@ export default function Pricing() {
                   className="w-full py-3 rounded-xl font-bold text-sm transition-all mb-7"
                   style={plan.popular
                     ? { background: '#2563EB', color: '#fff', boxShadow: '0 4px 14px rgba(37,99,235,0.3)' }
-                    : { background: '#dce4e8', color: '#2d3f55', border: '1px solid #c8d6de' }}
+                    : { background: '#dce4e8', color: 'var(--text-secondary)', border: '1px solid #c8d6de' }}
                   onMouseEnter={e => { if (!plan.popular) { e.currentTarget.style.background = '#c8d6de' } else { e.currentTarget.style.opacity = '0.9' } }}
                   onMouseLeave={e => { if (!plan.popular) { e.currentTarget.style.background = '#dce4e8' } else { e.currentTarget.style.opacity = '1' } }}>
                   {plan.popular ? 'Commencer maintenant' : 'Choisir ce plan'}
@@ -192,7 +192,7 @@ export default function Pricing() {
                     <div key={f.label} className="flex items-start gap-2.5">
                       {f.ok
                         ? <Check size={15} className="shrink-0 mt-0.5" style={{ color: '#2e7d32' }} />
-                        : <Lock size={15} className="shrink-0 mt-0.5" style={{ color: '#8fa5b5' }} />
+                        : <Lock size={15} className="shrink-0 mt-0.5" style={{ color: 'var(--text-muted)' }} />
                       }
                       <span className="text-sm" style={{ color: f.ok ? '#131d2e' : '#8fa5b5' }}>
                         {f.label}
@@ -207,39 +207,39 @@ export default function Pricing() {
 
         {/* ── Stats banner ── */}
         <div className="rounded-2xl p-6 md:p-8 mb-12 md:mb-16 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6"
-          style={{ background: '#131d2e', border: '1px solid #1e2d42' }}>
+          style={{ background: 'var(--nav-bg)', border: '1px solid #1e2d42' }}>
           {STATS.map(s => (
             <div key={s.top} className="flex flex-col items-center text-center gap-2">
               <s.icon size={22} style={{ color: '#2563EB' }} />
               <span className="font-black text-white text-lg leading-tight">{s.top}</span>
-              <span className="text-xs font-medium" style={{ color: '#8fa5b5' }}>{s.bottom}</span>
+              <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{s.bottom}</span>
             </div>
           ))}
         </div>
 
         {/* ── Comparaison ── */}
         <div className="mb-16">
-          <h2 className="text-2xl font-black text-center mb-8" style={{ color: '#131d2e' }}>
+          <h2 className="text-2xl font-black text-center mb-8" style={{ color: 'var(--text-primary)' }}>
             Comparé à la concurrence
           </h2>
           <div className="sea-card overflow-x-auto">
             <table className="w-full min-w-[500px]">
               <thead>
                 <tr style={{ background: '#dce4e8', borderBottom: '1px solid #c8d6de' }}>
-                  <th className="text-left px-4 md:px-6 py-3 text-xs font-bold uppercase tracking-wider" style={{ color: '#8fa5b5' }}>Critère</th>
+                  <th className="text-left px-4 md:px-6 py-3 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Critère</th>
                   <th className="px-4 md:px-6 py-3 text-xs font-bold uppercase tracking-wider text-center" style={{ color: '#2563EB' }}>Copilote</th>
-                  <th className="px-4 md:px-6 py-3 text-xs font-bold uppercase tracking-wider text-center" style={{ color: '#8fa5b5' }}>Logiciel trad.</th>
-                  <th className="px-4 md:px-6 py-3 text-xs font-bold uppercase tracking-wider text-center" style={{ color: '#8fa5b5' }}>Excel maison</th>
+                  <th className="px-4 md:px-6 py-3 text-xs font-bold uppercase tracking-wider text-center" style={{ color: 'var(--text-muted)' }}>Logiciel trad.</th>
+                  <th className="px-4 md:px-6 py-3 text-xs font-bold uppercase tracking-wider text-center" style={{ color: 'var(--text-muted)' }}>Excel maison</th>
                 </tr>
               </thead>
               <tbody>
                 {COMPARISON.map((row, i) => (
                   <tr key={row.feature}
                     style={{ borderBottom: i < COMPARISON.length - 1 ? '1px solid #c8d6de' : 'none' }}>
-                    <td className="px-4 md:px-6 py-3 md:py-4 text-sm font-semibold" style={{ color: '#131d2e' }}>{row.feature}</td>
+                    <td className="px-4 md:px-6 py-3 md:py-4 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{row.feature}</td>
                     <td className="px-4 md:px-6 py-3 md:py-4 text-sm font-bold text-center" style={{ color: '#2563EB' }}>{row.copilote}</td>
-                    <td className="px-4 md:px-6 py-3 md:py-4 text-sm text-center" style={{ color: '#4f6272' }}>{row.traditionnel}</td>
-                    <td className="px-4 md:px-6 py-3 md:py-4 text-sm text-center" style={{ color: '#8fa5b5' }}>{row.excel}</td>
+                    <td className="px-4 md:px-6 py-3 md:py-4 text-sm text-center" style={{ color: 'var(--text-secondary)' }}>{row.traditionnel}</td>
+                    <td className="px-4 md:px-6 py-3 md:py-4 text-sm text-center" style={{ color: 'var(--text-muted)' }}>{row.excel}</td>
                   </tr>
                 ))}
               </tbody>
@@ -249,7 +249,7 @@ export default function Pricing() {
 
         {/* ── FAQ ── */}
         <div className="mb-16">
-          <h2 className="text-2xl font-black text-center mb-8" style={{ color: '#131d2e' }}>
+          <h2 className="text-2xl font-black text-center mb-8" style={{ color: 'var(--text-primary)' }}>
             Questions fréquentes
           </h2>
           <div className="space-y-3 max-w-2xl mx-auto">
@@ -258,13 +258,13 @@ export default function Pricing() {
                 <button
                   className="w-full flex items-center justify-between px-6 py-4 text-left"
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}>
-                  <span className="text-sm font-bold" style={{ color: '#131d2e' }}>{item.q}</span>
+                  <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{item.q}</span>
                   <span className="text-lg font-black ml-4 shrink-0 transition-transform"
                     style={{ color: '#2563EB', transform: openFaq === i ? 'rotate(45deg)' : 'none' }}>+</span>
                 </button>
                 {openFaq === i && (
                   <div className="px-6 pb-4 fade-in">
-                    <p className="text-sm" style={{ color: '#4f6272' }}>{item.a}</p>
+                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{item.a}</p>
                   </div>
                 )}
               </div>
@@ -275,10 +275,10 @@ export default function Pricing() {
         {/* ── CTA final ── */}
         <div className="text-center rounded-2xl p-6 md:p-12"
           style={{ background: '#e8f4fb', border: '2px solid #b3d4e8' }}>
-          <h2 className="text-xl md:text-3xl font-black mb-3" style={{ color: '#131d2e' }}>
+          <h2 className="text-xl md:text-3xl font-black mb-3" style={{ color: 'var(--text-primary)' }}>
             Prêt à gagner 2h par semaine ?
           </h2>
-          <p className="text-base mb-8 font-medium" style={{ color: '#4f6272' }}>
+          <p className="text-base mb-8 font-medium" style={{ color: 'var(--text-secondary)' }}>
             14 jours satisfait ou remboursé. Sans engagement.
           </p>
           <button

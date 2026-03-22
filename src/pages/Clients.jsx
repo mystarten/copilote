@@ -43,7 +43,7 @@ function CniZone({ file, onChange }) {
                 <FileText size={18} style={{ color: '#2e7d32' }} />
               </div>
               <div>
-                <p className="text-sm font-semibold" style={{ color: '#131d2e' }}>{file.name}</p>
+                <p className="text-sm font-semibold">{file.name}</p>
                 <p className="text-xs" style={{ color: '#4f6272' }}>Document PDF</p>
               </div>
             </div>
@@ -138,7 +138,7 @@ export default function Clients() {
     <div className="p-4 md:p-8 fade-in max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: '#131d2e' }}>Base Clients</h1>
+          <h1 className="text-2xl font-bold">Base Clients</h1>
           <p className="text-sm mt-0.5" style={{ color: '#4f6272' }}>{clients.length} clients enregistrés</p>
         </div>
         <button onClick={openAdd}
@@ -171,14 +171,14 @@ export default function Clients() {
                     {client.nom[0]}
                   </div>
                   <div>
-                    <p className="font-bold text-sm mb-1" style={{ color: '#131d2e' }}>{client.nom}</p>
+                    <p className="font-bold text-sm mb-1">{client.nom}</p>
                     {(client.cni && client.cniFile) ? (
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-semibold px-2 py-0.5 rounded-lg"
                           style={{ background: '#e6f4ea', color: '#2e7d32', border: '1px solid #a5d6a7' }}>
                           CNI ✓
                         </span>
-                        {client.cniFile?.type?.startsWith('image/') && (
+                        {client.cniFile?.dataUrl && (
                           <button onClick={() => setCniPreviewModal(client)}
                             className="text-xs font-semibold px-1.5 py-0.5 rounded-lg transition-colors"
                             style={{ color: '#2563EB', background: '#e8f4fb', border: '1px solid #b3d4e8' }}>
@@ -243,7 +243,7 @@ export default function Clients() {
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: '#c8d6de' }}>
               <div>
-                <h2 className="font-bold text-lg" style={{ color: '#131d2e' }}>
+                <h2 className="font-bold text-lg">
                   {drawer === 'add' ? 'Nouveau client' : `Modifier ${drawer.nom}`}
                 </h2>
                 <p className="text-xs mt-0.5" style={{ color: '#8fa5b5' }}>
@@ -343,7 +343,7 @@ export default function Clients() {
             <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: '#fee2e2' }}>
               <Trash2 size={20} style={{ color: '#dc2626' }} />
             </div>
-            <h3 className="text-center font-bold mb-1" style={{ color: '#131d2e' }}>Supprimer ce client ?</h3>
+            <h3 className="text-center font-bold mb-1">Supprimer ce client ?</h3>
             <p className="text-center text-sm mb-6" style={{ color: '#4f6272' }}>
               <strong style={{ color: '#2d3f55' }}>{deleteConfirm.nom}</strong> sera retiré définitivement.
             </p>

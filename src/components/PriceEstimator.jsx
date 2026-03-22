@@ -8,7 +8,7 @@ const TENDANCE = {
   baisse:  { icon: TrendingDown, color: '#dc2626', bg: '#fef2f2', border: '#fecaca', label: 'En baisse' },
 }
 
-export default function PriceEstimator({ marque, modele, annee, km, carburant }) {
+export default function PriceEstimator({ marque, modele, annee, km, carburant, onApplyPrice }) {
   const [state, setState] = useState('idle') // idle | loading | done | error
   const [result, setResult] = useState(null)
   const [error, setError]   = useState('')
@@ -174,7 +174,23 @@ export default function PriceEstimator({ marque, modele, annee, km, carburant })
           </div>
         )}
 
-        <button onClick={() => setState('idle')} style={{ marginTop: 10, width: '100%', fontSize: 11, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
+        {onApplyPrice && result.prix_recommande && (
+          <button
+            onClick={() => onApplyPrice(result.prix_recommande)}
+            style={{
+              marginTop: 10, width: '100%', padding: '10px 14px', borderRadius: 10,
+              background: 'linear-gradient(135deg, #16a34a, #15803d)',
+              color: '#fff', border: 'none', cursor: 'pointer',
+              fontWeight: 700, fontSize: 13,
+              boxShadow: '0 2px 8px rgba(22,163,74,0.35)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}
+          >
+            ✓ Utiliser ce prix — {fmt(result.prix_recommande)}
+          </button>
+        )}
+
+        <button onClick={() => setState('idle')} style={{ marginTop: 6, width: '100%', fontSize: 11, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
           Actualiser
         </button>
       </div>

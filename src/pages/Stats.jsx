@@ -69,8 +69,8 @@ const demoMonthly = [
 ]
 const demoTypeData = [
   { name: 'France',  value: 61, color: '#2563EB' },
-  { name: 'Export',  value: 28, color: '#2d3f55' },
-  { name: 'Import',  value: 11, color: '#8fa5b5' },
+  { name: 'Export',  value: 28, color: 'var(--text-secondary)' },
+  { name: 'Import',  value: 11, color: 'var(--text-muted)' },
 ]
 const demoTop = [
   { vehicule: 'Ferrari SF90 Stradale 2024', marque: 'Ferrari',      marge: 68000, tx: '17.9' },
@@ -84,8 +84,8 @@ const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
       <div className="text-xs rounded-xl px-3 py-2 shadow-lg"
-        style={{ background: '#131d2e', color: '#fff', border: '1px solid #2d3f55' }}>
-        <p className="font-bold mb-1" style={{ color: '#8fa5b5' }}>{label}</p>
+        style={{ background: 'var(--nav-bg)', color: '#fff', border: '1px solid #2d3f55' }}>
+        <p className="font-bold mb-1" style={{ color: 'var(--text-muted)' }}>{label}</p>
         {payload.map((p, i) => (
           <p key={i} style={{ color: p.color }}>
             {p.name === 'ventes' ? `${p.value} ventes` : `${p.value.toLocaleString()} € marge`}
@@ -104,8 +104,8 @@ function EmptyState() {
         style={{ background: '#e8f4fb', border: '1px solid #b3d4e8' }}>
         <BarChart2 size={28} style={{ color: '#2563EB' }} />
       </div>
-      <h2 className="text-lg font-black mb-2" style={{ color: '#131d2e' }}>Aucune donnée à afficher</h2>
-      <p className="text-sm max-w-xs" style={{ color: '#4f6272' }}>
+      <h2 className="text-lg font-black mb-2">Aucune donnée à afficher</h2>
+      <p className="text-sm max-w-xs" style={{ color: 'var(--text-secondary)' }}>
         Commencez par enregistrer vos véhicules dans le{' '}
         <a href="/livre-de-police" className="font-semibold" style={{ color: '#2563EB' }}>
           Livre de Police
@@ -131,13 +131,13 @@ export default function Stats() {
     ? [
         { label: "Chiffre d'affaires total", value: '5 248 000 €', icon: Euro,      color: '#2563EB', bg: '#e8f4fb', sub: '+23% vs période préc.' },
         { label: 'Marge brute',              value: '1 271 000 €', icon: TrendingUp, color: '#2e7d32', bg: '#e6f4ea', sub: '+19% vs période préc.' },
-        { label: 'Marge moy. / véhicule',    value: '19 554 €',    icon: Car,        color: '#2d3f55', bg: '#f0f4f8', sub: 'Sur 65 véhicules vendus' },
+        { label: 'Marge moy. / véhicule',    value: '19 554 €',    icon: Car,        color: 'var(--text-secondary)', bg: '#f0f4f8', sub: 'Sur 65 véhicules vendus' },
         { label: 'Taux de marge moyen',      value: '24,2 %',      icon: Percent,    color: '#b45309', bg: '#fff8e1', sub: 'Objectif 25% — en approche ✓' },
       ]
     : [
         { label: "Chiffre d'affaires total", value: stats.ca > 0 ? `${stats.ca.toLocaleString()} €` : '—',          icon: Euro,      color: '#2563EB', bg: '#e8f4fb', sub: `${stats.nbVendus} vente${stats.nbVendus > 1 ? 's' : ''} enregistrée${stats.nbVendus > 1 ? 's' : ''}` },
         { label: 'Marge brute',              value: stats.marge > 0 ? `${stats.marge.toLocaleString()} €` : '—',     icon: TrendingUp, color: '#2e7d32', bg: '#e6f4ea', sub: stats.nbVendus > 0 ? 'Calculé depuis le livre de police' : 'Aucune vente' },
-        { label: 'Marge moy. / véhicule',    value: stats.margeMoy > 0 ? `${stats.margeMoy.toLocaleString()} €` : '—', icon: Car,     color: '#2d3f55', bg: '#f0f4f8', sub: stats.nbVendus > 0 ? `Sur ${stats.nbVendus} véhicule${stats.nbVendus > 1 ? 's' : ''} vendu${stats.nbVendus > 1 ? 's' : ''}` : 'Aucune vente' },
+        { label: 'Marge moy. / véhicule',    value: stats.margeMoy > 0 ? `${stats.margeMoy.toLocaleString()} €` : '—', icon: Car,     color: 'var(--text-secondary)', bg: '#f0f4f8', sub: stats.nbVendus > 0 ? `Sur ${stats.nbVendus} véhicule${stats.nbVendus > 1 ? 's' : ''} vendu${stats.nbVendus > 1 ? 's' : ''}` : 'Aucune vente' },
         { label: 'Taux de marge moyen',      value: stats.ca > 0 ? `${stats.tauxMarge} %` : '—',                     icon: Percent,   color: '#b45309', bg: '#fff8e1', sub: 'Marge / chiffre d\'affaires' },
       ]
 
@@ -146,8 +146,8 @@ export default function Stats() {
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-black" style={{ color: '#131d2e' }}>Statistiques</h1>
-        <p className="text-sm mt-1" style={{ color: '#4f6272' }}>
+        <h1 className="text-2xl font-black">Statistiques</h1>
+        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
           {isDemo ? 'Données de démonstration' : 'Données réelles — calculées depuis votre livre de police'}
         </p>
       </div>
@@ -164,8 +164,8 @@ export default function Stats() {
                   <Icon size={18} style={{ color: kpi.color }} />
                 </div>
               </div>
-              <p className="text-xs font-semibold mb-1" style={{ color: '#8fa5b5' }}>{kpi.label}</p>
-              <p className="text-2xl font-black mb-1" style={{ color: '#131d2e' }}>{kpi.value}</p>
+              <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>{kpi.label}</p>
+              <p className="text-2xl font-black mb-1">{kpi.value}</p>
               <p className="text-xs" style={{ color: kpi.color }}>{kpi.sub}</p>
             </div>
           )
@@ -179,8 +179,8 @@ export default function Stats() {
 
             {/* Bar chart */}
             <div className="sea-card p-6 lg:col-span-2">
-              <h2 className="text-sm font-black mb-1" style={{ color: '#131d2e' }}>Ventes & Marge par mois</h2>
-              <p className="text-xs mb-5" style={{ color: '#8fa5b5' }}>6 derniers mois</p>
+              <h2 className="text-sm font-black mb-1">Ventes & Marge par mois</h2>
+              <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>6 derniers mois</p>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={monthly} barGap={4} barCategoryGap="30%">
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
@@ -195,11 +195,11 @@ export default function Stats() {
               <div className="flex items-center gap-4 mt-3">
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-sm" style={{ background: '#2563EB' }} />
-                  <span className="text-xs" style={{ color: '#8fa5b5' }}>Nbre de ventes</span>
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Nbre de ventes</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-sm" style={{ background: '#b3d4e8' }} />
-                  <span className="text-xs" style={{ color: '#8fa5b5' }}>Marge (€)</span>
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Marge (€)</span>
                 </div>
               </div>
             </div>
@@ -207,8 +207,8 @@ export default function Stats() {
             {/* Pie chart — demo only (no type data in real entries) */}
             {isDemo && (
               <div className="sea-card p-6">
-                <h2 className="text-sm font-black mb-1" style={{ color: '#131d2e' }}>Répartition par type</h2>
-                <p className="text-xs mb-4" style={{ color: '#8fa5b5' }}>France / Export / Import</p>
+                <h2 className="text-sm font-black mb-1">Répartition par type</h2>
+                <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>France / Export / Import</p>
                 <ResponsiveContainer width="100%" height={180}>
                   <PieChart>
                     <Pie data={demoTypeData} cx="50%" cy="50%" innerRadius={50} outerRadius={75}
@@ -216,7 +216,7 @@ export default function Stats() {
                       {demoTypeData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                     </Pie>
                     <Tooltip formatter={(v, n) => [`${v}%`, n]}
-                      contentStyle={{ background: '#131d2e', border: '1px solid #2d3f55', borderRadius: 10, fontSize: 11, color: '#fff' }} />
+                      contentStyle={{ background: 'var(--nav-bg)', border: '1px solid #2d3f55', borderRadius: 10, fontSize: 11, color: '#fff' }} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="space-y-2 mt-2">
@@ -224,9 +224,9 @@ export default function Stats() {
                     <div key={t.name} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: t.color }} />
-                        <span className="text-xs font-semibold" style={{ color: '#4f6272' }}>{t.name}</span>
+                        <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>{t.name}</span>
                       </div>
-                      <span className="text-xs font-black" style={{ color: '#131d2e' }}>{t.value}%</span>
+                      <span className="text-xs font-black">{t.value}%</span>
                     </div>
                   ))}
                 </div>
@@ -237,15 +237,15 @@ export default function Stats() {
           {/* Top véhicules */}
           {topList.length > 0 && (
             <div className="sea-card p-6">
-              <h2 className="text-sm font-black mb-1" style={{ color: '#131d2e' }}>Top véhicules les plus rentables</h2>
-              <p className="text-xs mb-5" style={{ color: '#8fa5b5' }}>Classement par marge brute</p>
+              <h2 className="text-sm font-black mb-1">Top véhicules les plus rentables</h2>
+              <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>Classement par marge brute</p>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
                       {['#', 'Véhicule', 'Marque', 'Marge brute', 'Taux de marge'].map(h => (
                         <th key={h} className="text-left pb-3 text-xs font-bold uppercase tracking-wider"
-                          style={{ color: '#8fa5b5' }}>{h}</th>
+                          style={{ color: 'var(--text-muted)' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -259,11 +259,11 @@ export default function Stats() {
                           </span>
                         </td>
                         <td className="py-3 pr-4">
-                          <p className="text-sm font-semibold" style={{ color: '#131d2e' }}>{v.vehicule}</p>
+                          <p className="text-sm font-semibold">{v.vehicule}</p>
                         </td>
                         <td className="py-3 pr-4">
                           <span className="text-xs font-bold px-2 py-1 rounded-lg"
-                            style={{ background: '#f0f4f8', color: '#2d3f55' }}>{v.marque}</span>
+                            style={{ background: '#f0f4f8', color: 'var(--text-secondary)' }}>{v.marque}</span>
                         </td>
                         <td className="py-3 pr-4">
                           <p className="text-sm font-black" style={{ color: '#2e7d32' }}>
@@ -276,7 +276,7 @@ export default function Stats() {
                               <div className="h-1.5 rounded-full"
                                 style={{ background: '#2563EB', width: `${Math.min((parseFloat(v.tx) / 30) * 100, 100)}%` }} />
                             </div>
-                            <span className="text-xs font-bold" style={{ color: '#4f6272' }}>{v.tx}%</span>
+                            <span className="text-xs font-bold" style={{ color: 'var(--text-secondary)' }}>{v.tx}%</span>
                           </div>
                         </td>
                       </tr>

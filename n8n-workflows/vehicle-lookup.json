@@ -1,0 +1,252 @@
+{
+  "name": "Vehicle Lookup — Auto-Ways SIV",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vehicle-lookup",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "vehicle-lookup"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.plaque }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "isNotEmpty"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "plate"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.vin }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "isNotEmpty"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "vin"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "switch-node",
+      "name": "Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://app.auto-ways.net/api/v1/fr",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "plaque",
+              "value": "={{ $('Webhook').item.json.body.plaque }}"
+            },
+            {
+              "name": "token",
+              "value": "={{ $env.AUTOWAYS_TOKEN }}"
+            },
+            {
+              "name": "country",
+              "value": "fr"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-plate-node",
+      "name": "Auto-Ways — Plaque",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 180]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://app.auto-ways.net/api/v1/vin",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "vin",
+              "value": "={{ $('Webhook').item.json.body.vin }}"
+            },
+            {
+              "name": "token",
+              "value": "={{ $env.AUTOWAYS_TOKEN }}"
+            },
+            {
+              "name": "output_lang",
+              "value": "fr"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-vin-node",
+      "name": "Auto-Ways — VIN",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 420]
+    },
+    {
+      "parameters": {
+        "mode": "passThrough",
+        "output": "input1"
+      },
+      "id": "merge-node",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json?.data || {}\nconst energieMap = {\n  'DIESEL': 'Diesel',\n  'ESSENCE': 'Essence',\n  'ELECTRIQUE': 'Électrique',\n  'HYBRIDE': 'Hybride',\n  'GPL': 'GPL',\n  'GNV': 'GNV'\n}\nreturn [{\n  json: {\n    marque: (d.marque || '').trim(),\n    modele: (d.modele || '').trim(),\n    annee: d.date1erCir_us ? d.date1erCir_us.slice(0,4) : '',\n    carburant: energieMap[d.energieNGC] || d.energieNGC || '',\n    puissance_ch: d.puisFiscReelCH || '',\n    puissance_kw: d.puisFiscReelKW || '',\n    co2: d.co2 || '',\n    carrosserie: d.carrosserieCG || '',\n    vin: d.vin || '',\n    plaque: d.immat || '',\n    couleur: d.couleur || '',\n    date_mise_circulation: d.date1erCir_fr || '',\n    source: 'SIV France (ANTS)',\n  }\n}]"
+      },
+      "id": "code-normalize-node",
+      "name": "Normaliser réponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond-node",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Auto-Ways — Plaque",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Auto-Ways — VIN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-Ways — Plaque": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-Ways — VIN": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Normaliser réponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normaliser réponse": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-03-21T00:00:00.000Z",
+  "versionId": "1"
+}

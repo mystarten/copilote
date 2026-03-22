@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { Check, ChevronRight, User, Car, FileText, Zap, Search, CheckCircle, Euro, Calendar, CreditCard, Shield, RotateCcw, UserPlus, X, Download, Send, Eye, Camera, Hash, Loader, Upload, ShieldCheck } from 'lucide-react'
+import { Check, ChevronRight, User, Car, FileText, Zap, Search, CheckCircle, Euro, Calendar, CreditCard, Shield, RotateCcw, UserPlus, X, Download, Send, Eye, Camera, Loader, Upload, ShieldCheck } from 'lucide-react'
+import { getDefaultVehiclePhoto } from '../lib/vehiclePhoto'
 import { useClients } from '../context/ClientsContext'
 import { useUser } from '../context/UserContext'
 import { useToast } from '../components/Toast'
@@ -10,6 +11,7 @@ import { formatTelephone } from '../lib/formatters'
 import { useLivreDePolice } from '../context/LivreDePoliceContext'
 import Confetti from '../components/Confetti'
 import PriceEstimator from '../components/PriceEstimator'
+import VehicleHistory from '../components/VehicleHistory'
 
 const DOCS = {
   france: ['Facture de vente', 'Bon de commande', 'Bon de livraison', 'CERFA 15776', 'Certificat de cession', 'Certificat de situation administrative', 'Garantie commerciale', "Déclaration d'achat"],
@@ -182,6 +184,7 @@ export default function NewSale() {
       prixAchat:   e.prixAchat   || 0,
       fournisseur: e.fournisseur || '',
       statut:      'En stock',
+      photos:      e.photos      || [],
     }))
   const user = useUser()
   const cgInputRef = useRef(null)
@@ -213,20 +216,21 @@ export default function NewSale() {
   const [previewDoc, setPreviewDoc] = useState(null)
   // Nouvelles features
   const [scanning, setScanning] = useState(false)
-  const [vinSearch, setVinSearch] = useState('')
-  const [vinLoading, setVinLoading] = useState(false)
-  const [vinResult, setVinResult] = useState(null) // null | 'found' | 'notfound'
-  const [showVinInput, setShowVinInput] = useState(false)
+  const [filterCarburant, setFilterCarburant] = useState('')
 
   const filteredClients = clients.filter(c =>
     c.nom.toLowerCase().includes(clientSearch.toLowerCase()) ||
     c.email.toLowerCase().includes(clientSearch.toLowerCase())
   )
-  const filteredVehicles = ldpVehicles.filter(v =>
-    v.plaque.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
-    v.marque.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
-    v.modele.toLowerCase().includes(vehicleSearch.toLowerCase())
-  )
+  const filteredVehicles = ldpVehicles.filter(v => {
+    const q = vehicleSearch.toLowerCase()
+    const matchSearch = !q ||
+      v.plaque.toLowerCase().includes(q) ||
+      v.marque.toLowerCase().includes(q) ||
+      v.modele.toLowerCase().includes(q)
+    const matchCarburant = !filterCarburant || v.carburant === filterCarburant
+    return matchSearch && matchCarburant
+  })
 
   const handleTypeChange = (type) => { setSaleType(type); setSelectedDocs({}); setDocProgress({}); setAllGenerated(false) }
   const toggleDoc = (doc) => setSelectedDocs(prev => ({ ...prev, [doc]: !prev[doc] }))
@@ -265,26 +269,6 @@ export default function NewSale() {
       showToast(`✅ Carte grise lue — ${v.marque} ${v.modele} ${v.annee} identifié`)
     }, 2200)
     e.target.value = ''
-  }
-
-  // ── Recherche VIN ─────────────────────────────────────────────────────────
-  const handleVinChange = (val) => {
-    setVinSearch(val)
-    setVinResult(null)
-    if (val.length < 17) return
-    setVinLoading(true)
-    setTimeout(() => {
-      const found = VIN_DB[val.toUpperCase()]
-      setVinLoading(false)
-      if (found) {
-        setVinResult('found')
-        setSelectedVehicle(found)
-        setVehicleSearch(`${found.marque} ${found.modele}`)
-        showToast(`✅ VIN reconnu — ${found.marque} ${found.modele} ${found.annee}`)
-      } else {
-        setVinResult('notfound')
-      }
-    }, 1400)
   }
 
   const handleGenerate = async () => {
@@ -465,7 +449,7 @@ export default function NewSale() {
     <div className="p-4 md:p-8 fade-in max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: '#131d2e' }}>Nouvelle Vente</h1>
+          <h1 className="text-2xl font-bold">Nouvelle Vente</h1>
           <p className="text-sm mt-0.5" style={{ color: '#4f6272' }}>Générez vos documents administratifs en quelques minutes</p>
         </div>
         <button onClick={handleReset}
@@ -521,7 +505,7 @@ export default function NewSale() {
               {/* Header */}
               <div className="flex items-center justify-between mb-5">
                 <div>
-                  <h2 className="text-lg font-black" style={{ color: '#131d2e' }}>Sélectionner un client</h2>
+                  <h2 className="text-lg font-black">Sélectionner un client</h2>
                   <p className="text-xs mt-0.5" style={{ color: '#8fa5b5' }}>{clients.length} client{clients.length > 1 ? 's' : ''} dans votre base</p>
                 </div>
                 <button onClick={() => setShowNewClientForm(!showNewClientForm)}
@@ -552,7 +536,7 @@ export default function NewSale() {
                           <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-black text-xs shrink-0"
                             style={{ background: `hsl(${(c.nom.charCodeAt(0) * 37) % 360}, 55%, 38%)` }}>{c.nom[0]?.toUpperCase()}</div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate" style={{ color: '#131d2e' }}>{c.nom}</p>
+                            <p className="text-sm font-semibold truncate">{c.nom}</p>
                             <p className="text-xs truncate" style={{ color: '#8fa5b5' }}>{c.email}</p>
                           </div>
                           {c.cni && <span className="text-xs font-semibold px-2 py-0.5 rounded-lg shrink-0" style={{ background: '#e6f4ea', color: '#2e7d32', border: '1px solid #a5d6a7' }}>CNI ✓</span>}
@@ -578,7 +562,7 @@ export default function NewSale() {
                         <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-black text-xs shrink-0"
                           style={{ background: `hsl(${(c.nom.charCodeAt(0) * 37) % 360}, 55%, 38%)` }}>{c.nom[0]?.toUpperCase()}</div>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold truncate" style={{ color: '#131d2e' }}>{c.nom}</p>
+                          <p className="text-xs font-bold truncate">{c.nom}</p>
                           <p className="text-xs truncate" style={{ color: '#8fa5b5' }}>{c.telephone || c.email}</p>
                         </div>
                       </button>
@@ -650,7 +634,7 @@ export default function NewSale() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-black text-sm" style={{ color: '#131d2e' }}>{selectedClient.nom}</p>
+                      <p className="font-black text-sm">{selectedClient.nom}</p>
                       {selectedClient.cni && <span className="text-xs font-bold px-1.5 py-0.5 rounded-md" style={{ background: '#e6f4ea', color: '#2e7d32', border: '1px solid #a5d6a7' }}>CNI ✓</span>}
                     </div>
                     <p className="text-xs mt-0.5 truncate" style={{ color: '#4f6272' }}>{selectedClient.email}{selectedClient.telephone ? ` · ${selectedClient.telephone}` : ''}</p>
@@ -681,7 +665,7 @@ export default function NewSale() {
             <div className="fade-in">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-lg font-black" style={{ color: '#131d2e' }}>Sélectionner un véhicule</h2>
+                  <h2 className="text-lg font-black">Sélectionner un véhicule</h2>
                   <p className="text-xs mt-0.5" style={{ color: '#8fa5b5' }}>{ldpVehicles.length} véhicule{ldpVehicles.length > 1 ? 's' : ''} en stock</p>
                 </div>
                 {/* Scan CG button */}
@@ -726,145 +710,130 @@ export default function NewSale() {
                 </div>
               )}
 
-              {/* Recherche texte */}
+              {/* Barre de recherche */}
               <div className="relative">
                 <Search size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#8fa5b5', pointerEvents: 'none', zIndex: 1 }} />
                 <input type="text" placeholder="Marque, modèle ou plaque..."
                   value={vehicleSearch}
-                  onChange={e => { setVehicleSearch(e.target.value); setShowVehicleDrop(true); setSelectedVehicle(null) }}
-                  onFocus={() => setShowVehicleDrop(true)}
+                  onChange={e => { setVehicleSearch(e.target.value); setSelectedVehicle(null) }}
                   className="sea-input"
                   style={{ paddingLeft: 42 }} />
-                {showVehicleDrop && vehicleSearch && filteredVehicles.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 overflow-hidden" style={dropStyle}>
-                    {filteredVehicles.map(v => (
-                      <button key={v.id} className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
-                        onMouseEnter={e => e.currentTarget.style.background = '#f4f8fa'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                        onClick={() => { setSelectedVehicle(v); setVehicleSearch(`${v.marque} ${v.modele}`); setShowVehicleDrop(false) }}>
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                          style={{ background: '#eef3f7', border: '1px solid #c8d6de' }}>
-                          <Car size={13} style={{ color: '#4f6272' }} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold" style={{ color: '#131d2e' }}>{v.marque} {v.modele} · {v.plaque}</p>
-                          <p className="text-xs" style={{ color: '#8fa5b5' }}>{v.annee} · {v.km.toLocaleString()} km · {v.carburant}</p>
-                        </div>
-                        <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-lg" style={{ background: '#e6f4ea', color: '#2e7d32', border: '1px solid #a5d6a7' }}>En stock</span>
-                      </button>
-                    ))}
-                  </div>
+                {vehicleSearch && (
+                  <button onClick={() => { setVehicleSearch(''); setSelectedVehicle(null) }}
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>
+                    <X size={14} style={{ color: '#8fa5b5' }} />
+                  </button>
                 )}
               </div>
 
-              {/* Accès rapide véhicules — depuis LDP */}
-              {!vehicleSearch && !selectedVehicle && ldpVehicles.length === 0 && (
-                <div className="mt-4 p-4 rounded-xl text-center fade-in" style={{ background: '#f4f8fa', border: '1.5px dashed #c8d6de' }}>
-                  <Car size={24} style={{ color: '#c8d6de', margin: '0 auto 8px' }} />
-                  <p className="text-sm font-semibold" style={{ color: '#8fa5b5' }}>Aucun véhicule en stock</p>
-                  <p className="text-xs mt-1" style={{ color: '#aab8c4' }}>Ajoutez des véhicules dans le Livre de Police</p>
-                </div>
-              )}
-              {!vehicleSearch && !selectedVehicle && ldpVehicles.length > 0 && (
-                <div className="mt-4 fade-in">
-                  <p className="text-xs font-bold uppercase tracking-wider mb-2.5" style={{ color: '#8fa5b5' }}>Stock disponible · {ldpVehicles.length} véhicule{ldpVehicles.length > 1 ? 's' : ''}</p>
-                  <div className="grid grid-cols-1 gap-2">
-                    {ldpVehicles.slice(0, 5).map(v => (
-                      <button key={v.id} onClick={() => { setSelectedVehicle(v); setVehicleSearch(`${v.marque} ${v.modele}`) }}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all"
-                        style={{ background: '#f4f8fa', border: '1.5px solid #dce4e8' }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = '#2563EB'; e.currentTarget.style.background = '#e8f4fb' }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#dce4e8'; e.currentTarget.style.background = '#f4f8fa' }}>
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #e8f4fb, #dce4e8)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <Car size={15} style={{ color: '#2563EB' }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold truncate" style={{ color: '#131d2e' }}>{v.marque} {v.modele}</p>
-                          <p className="text-xs truncate" style={{ color: '#8fa5b5' }}>
-                            {v.plaque}{v.annee ? ` · ${v.annee}` : ''}{v.km ? ` · ${v.km.toLocaleString()} km` : ''}{v.carburant ? ` · ${v.carburant}` : ''}
-                          </p>
-                        </div>
-                        <span className="text-xs font-bold px-2 py-1 rounded-lg shrink-0" style={{ background: '#e6f4ea', color: '#2e7d32', border: '1px solid #a5d6a7' }}>En stock</span>
-                      </button>
-                    ))}
+              {/* Filtres carburant */}
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {['', 'Essence', 'Diesel', 'Électrique', 'Hybride', 'GPL'].map(f => {
+                  const active = filterCarburant === f
+                  return (
+                    <button key={f} onClick={() => setFilterCarburant(f)}
+                      className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-all"
+                      style={{
+                        background: active ? '#2563EB' : '#f4f8fa',
+                        color: active ? '#fff' : '#4f6272',
+                        border: `1.5px solid ${active ? '#2563EB' : '#dce4e8'}`,
+                      }}>
+                      {f || 'Tous'}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Liste véhicules filtrés */}
+              {!selectedVehicle && (
+                filteredVehicles.length === 0 ? (
+                  <div className="mt-4 p-4 rounded-xl text-center fade-in" style={{ background: '#f4f8fa', border: '1.5px dashed #c8d6de' }}>
+                    <Car size={24} style={{ color: '#c8d6de', margin: '0 auto 8px' }} />
+                    <p className="text-sm font-semibold" style={{ color: '#8fa5b5' }}>
+                      {ldpVehicles.length === 0 ? 'Aucun véhicule en stock' : 'Aucun résultat'}
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: '#aab8c4' }}>
+                      {ldpVehicles.length === 0 ? 'Ajoutez des véhicules dans le Livre de Police' : 'Modifiez vos critères de recherche'}
+                    </p>
                   </div>
-                  {ldpVehicles.length > 5 && (
-                    <p className="text-xs mt-2 text-center" style={{ color: '#8fa5b5' }}>+{ldpVehicles.length - 5} autres · utilisez la recherche</p>
-                  )}
-                </div>
-              )}
-
-              {/* Recherche VIN */}
-              <div className="mt-3">
-                <button onClick={() => { setShowVinInput(v => !v); setVinSearch(''); setVinResult(null) }}
-                  className="flex items-center gap-2 text-sm font-semibold transition-colors"
-                  style={{ color: '#2563EB' }}>
-                  <Hash size={13} />
-                  {showVinInput ? 'Masquer la recherche VIN' : 'Rechercher par numéro VIN'}
-                </button>
-
-                {showVinInput && (
-                  <div className="mt-3 fade-in">
-                    <div className="relative">
-                      <Hash size={13} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#8fa5b5', pointerEvents: 'none', zIndex: 1 }} />
-                      <input
-                        type="text"
-                        placeholder="Ex : WBS8M9C5XNC000001"
-                        value={vinSearch}
-                        onChange={e => handleVinChange(e.target.value.toUpperCase())}
-                        maxLength={17}
-                        className="sea-input font-mono text-sm tracking-widest"
-                        style={{ paddingLeft: 42, letterSpacing: '0.12em' }}
-                      />
-                      {vinLoading && (
-                        <Loader size={13} className="animate-spin absolute right-3.5 top-1/2 -translate-y-1/2" style={{ color: '#2563EB' }} />
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between mt-1.5 px-1">
-                      <span className="text-xs" style={{ color: '#8fa5b5' }}>{vinSearch.length}/17 caractères</span>
-                      {vinResult === 'found' && <span className="text-xs font-semibold" style={{ color: '#2e7d32' }}>✓ Véhicule trouvé</span>}
-                      {vinResult === 'notfound' && <span className="text-xs font-semibold" style={{ color: '#dc2626' }}>VIN non trouvé dans le stock</span>}
-                    </div>
-                    {/* VIN hints */}
-                    {vinSearch.length === 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {Object.keys(VIN_DB).slice(0, 3).map(vin => (
-                          <button key={vin} onClick={() => handleVinChange(vin)}
-                            className="text-xs px-2 py-1 rounded-lg font-mono"
-                            style={{ background: '#e8f4fb', color: '#2563EB', border: '1px solid #b3d4e8', letterSpacing: '0.05em' }}>
-                            {vin}
+                ) : (
+                  <div className="mt-4 fade-in">
+                    <p className="text-xs font-bold uppercase tracking-wider mb-2.5" style={{ color: '#8fa5b5' }}>
+                      {filteredVehicles.length} véhicule{filteredVehicles.length > 1 ? 's' : ''} disponible{filteredVehicles.length > 1 ? 's' : ''}
+                    </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10, maxHeight: 380, overflowY: 'auto' }}>
+                      {filteredVehicles.map(v => {
+                        const photo = v.photos?.[0] || getDefaultVehiclePhoto(v.marque, v.modele)
+                        return (
+                          <button key={v.id} onClick={() => { setSelectedVehicle(v); setVehicleSearch(`${v.marque} ${v.modele}`) }}
+                            style={{
+                              background: '#fff', border: '1.5px solid #dce4e8', borderRadius: 14,
+                              overflow: 'hidden', cursor: 'pointer', textAlign: 'left',
+                              transition: 'all 0.15s', padding: 0,
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = '#2563EB'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(37,99,235,0.15)' }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = '#dce4e8'; e.currentTarget.style.boxShadow = 'none' }}>
+                            {/* Photo */}
+                            <div style={{ height: 100, overflow: 'hidden', background: '#e8eef2', position: 'relative' }}>
+                              <img src={photo} alt={`${v.marque} ${v.modele}`}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                onError={e => { e.target.src = getDefaultVehiclePhoto(v.marque, v.modele) }}
+                              />
+                              {v.carburant && (
+                                <span style={{
+                                  position: 'absolute', top: 6, right: 6,
+                                  fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 6,
+                                  background: 'rgba(0,0,0,0.55)', color: '#fff', backdropFilter: 'blur(4px)',
+                                }}>
+                                  {v.carburant}
+                                </span>
+                              )}
+                            </div>
+                            {/* Infos */}
+                            <div style={{ padding: '8px 10px' }}>
+                              <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: '#131d2e', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {v.marque} {v.modele}
+                              </p>
+                              <p style={{ margin: '3px 0 0', fontSize: 10, color: '#8fa5b5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {v.plaque}{v.annee ? ` · ${v.annee}` : ''}{v.km ? ` · ${Number(v.km).toLocaleString('fr-FR')} km` : ''}
+                              </p>
+                            </div>
                           </button>
-                        ))}
-                        <span className="text-xs self-center" style={{ color: '#c8d6de' }}>← exemples</span>
-                      </div>
-                    )}
+                        )
+                      })}
+                    </div>
                   </div>
-                )}
-              </div>
+                )
+              )}
 
               {selectedVehicle && (
-                <div className="mt-4 fade-in" style={{ background: 'linear-gradient(135deg, #e8f4fb, #f0f7ff)', border: '2px solid #2563EB', borderRadius: 16, padding: '14px 16px' }}>
-                  <div className="flex items-center gap-3">
-                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg, #2563EB, #1a3a8f)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 12px rgba(37,99,235,0.3)' }}>
-                      <Car size={20} color="#fff" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-black text-sm" style={{ color: '#131d2e' }}>{selectedVehicle.marque} {selectedVehicle.modele}</p>
-                      <p className="text-xs mt-0.5" style={{ color: '#4f6272' }}>
-                        {[selectedVehicle.plaque, selectedVehicle.annee, selectedVehicle.km ? `${selectedVehicle.km.toLocaleString()} km` : null, selectedVehicle.carburant].filter(Boolean).join(' · ')}
-                      </p>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Check size={13} color="#fff" />
+                <>
+                  <div className="mt-4 fade-in" style={{ background: 'linear-gradient(135deg, #e8f4fb, #f0f7ff)', border: '2px solid #2563EB', borderRadius: 16, padding: '14px 16px' }}>
+                    <div className="flex items-center gap-3">
+                      <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg, #2563EB, #1a3a8f)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 12px rgba(37,99,235,0.3)' }}>
+                        <Car size={20} color="#fff" />
                       </div>
-                      <button onClick={() => { setSelectedVehicle(null); setVehicleSearch(''); setVinSearch(''); setVinResult(null) }}
-                        style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(0,0,0,0.06)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8fa5b5' }}>
-                        <X size={13} />
-                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-sm">{selectedVehicle.marque} {selectedVehicle.modele}</p>
+                        <p className="text-xs mt-0.5" style={{ color: '#4f6272' }}>
+                          {[selectedVehicle.plaque, selectedVehicle.annee, selectedVehicle.km ? `${selectedVehicle.km.toLocaleString()} km` : null, selectedVehicle.carburant].filter(Boolean).join(' · ')}
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Check size={13} color="#fff" />
+                        </div>
+                        <button onClick={() => { setSelectedVehicle(null); setVehicleSearch(''); setVinSearch(''); setVinResult(null) }}
+                          style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(0,0,0,0.06)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8fa5b5' }}>
+                          <X size={13} />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                  <div className="mt-3">
+                    <VehicleHistory vin={selectedVehicle.vin} plaque={selectedVehicle.plaque} />
+                  </div>
+                </>
               )}
 
               <div className="mt-8 flex justify-between">
@@ -883,7 +852,7 @@ export default function NewSale() {
           {step === 3 && (
             <div className="fade-in">
               <div className="mb-5">
-                <h2 className="text-lg font-black" style={{ color: '#131d2e' }}>Détails de la vente</h2>
+                <h2 className="text-lg font-black">Détails de la vente</h2>
                 <p className="text-xs mt-0.5" style={{ color: '#8fa5b5' }}>{selectedClient?.nom} · {selectedVehicle?.marque} {selectedVehicle?.modele}</p>
               </div>
 
@@ -913,6 +882,7 @@ export default function NewSale() {
                   annee={selectedVehicle?.annee}
                   km={selectedVehicle?.km}
                   carburant={selectedVehicle?.carburant}
+                  onApplyPrice={(price) => setPrix(String(price))}
                 />
               </div>
 
@@ -973,7 +943,7 @@ export default function NewSale() {
           {step === 4 && (
             <div className="fade-in">
               <div className="mb-5">
-                <h2 className="text-lg font-black" style={{ color: '#131d2e' }}>Sélection des documents</h2>
+                <h2 className="text-lg font-black">Sélection des documents</h2>
                 <p className="text-xs mt-0.5" style={{ color: '#8fa5b5' }}>Cochez les documents à générer pour ce dossier</p>
               </div>
 
