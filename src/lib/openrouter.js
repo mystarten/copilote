@@ -39,7 +39,7 @@ Réponds UNIQUEMENT en JSON valide avec ce format exact, sans texte avant ou apr
       'X-Title': 'PVOI Copilote',
     },
     body: JSON.stringify({
-      model: 'perplexity/sonar-pro-search',
+      model: 'perplexity/sonar',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.2,
     }),

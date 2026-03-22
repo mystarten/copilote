@@ -100,10 +100,11 @@ async function fetchCarPhoto(marque, modele) {
   }
 }
 
-/* ── Sélecteur marque + modèle avec autocomplete ───────────── */
+/* ── Sélecteur marque + modèle — design pro ────────────────── */
 function VehicleSelect({ marque, modele, onMarqueChange, onModeleChange, onPhotoFetched }) {
   const models = getModels(marque)
   const [fetching, setFetching] = useState(false)
+  const isComplete = marque && modele
 
   const handleModeleChange = async (val) => {
     onModeleChange(val)
@@ -116,51 +117,80 @@ function VehicleSelect({ marque, modele, onMarqueChange, onModeleChange, onPhoto
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-      <div>
-        <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#4f6272', display: 'block', marginBottom: 6 }}>
-          Marque *
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted, #4f6272)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Car size={11} /> Identification du véhicule *
         </label>
-        <input
-          list="marque-list"
-          value={marque}
-          onChange={e => {
-            onMarqueChange(e.target.value)
-            onModeleChange('')
-          }}
-          placeholder="BMW, Peugeot…"
-          className="sea-input"
-          autoComplete="off"
-        />
-        <datalist id="marque-list">
-          {MAKES.map(m => <option key={m} value={m} />)}
-        </datalist>
+        {isComplete && !fetching && (
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 3 }}>
+            <Check size={10} /> {marque} {modele}
+          </span>
+        )}
+        {fetching && (
+          <span style={{ fontSize: 10, color: '#6366f1', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ display: 'inline-block', width: 8, height: 8, border: '1.5px solid #c7d2fe', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            Photo en cours…
+          </span>
+        )}
       </div>
-      <div>
-        <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#4f6272', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-          Modèle *
-          {fetching && (
-            <span style={{ fontSize: 10, color: '#2563EB', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ display: 'inline-block', width: 8, height: 8, border: '1.5px solid #bfdbfe', borderTopColor: '#2563EB', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-              photo…
-            </span>
-          )}
-        </label>
-        <input
-          list="modele-list"
-          value={modele}
-          onChange={e => handleModeleChange(e.target.value)}
-          placeholder={models.length ? 'Choisir…' : 'Série 3, 3008…'}
-          className="sea-input"
-          autoComplete="off"
-        />
-        <datalist id="modele-list">
-          {models.map(m => <option key={m.model} value={m.model} />)}
-        </datalist>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: 12, borderRadius: 12, background: 'var(--bg-input, #f8fafc)', border: `1.5px solid ${isComplete ? '#bbf7d0' : 'var(--border, #e2e8f0)'}`, transition: 'border-color 0.2s' }}>
+        <div>
+          <p style={{ margin: '0 0 5px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted, #94a3b8)' }}>Marque</p>
+          <input
+            list="marque-list"
+            value={marque}
+            onChange={e => { onMarqueChange(e.target.value); onModeleChange('') }}
+            placeholder="BMW, Peugeot…"
+            className="sea-input"
+            autoComplete="off"
+            style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600 }}
+          />
+          <datalist id="marque-list">
+            {MAKES.map(m => <option key={m} value={m} />)}
+          </datalist>
+        </div>
+        <div>
+          <p style={{ margin: '0 0 5px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted, #94a3b8)' }}>Modèle</p>
+          <input
+            list="modele-list"
+            value={modele}
+            onChange={e => handleModeleChange(e.target.value)}
+            placeholder={models.length ? `${models.length} modèles…` : 'Série 3, 3008…'}
+            className="sea-input"
+            autoComplete="off"
+            style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600 }}
+          />
+          <datalist id="modele-list">
+            {models.map(m => <option key={m.model} value={m.model} />)}
+          </datalist>
+        </div>
       </div>
     </div>
   )
 }
+
+/* ── Select stylisé ────────────────────────────────────────── */
+function SeaSelect({ label, value, onChange, options, placeholder }) {
+  return (
+    <div>
+      <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted, #94a3b8)', display: 'block', marginBottom: 4 }}>
+        {label}
+      </label>
+      <select value={value || ''} onChange={e => onChange(e.target.value)} className="sea-input"
+        style={{ padding: '9px 12px', fontSize: 13, cursor: 'pointer', appearance: 'auto' }}>
+        <option value="">{placeholder || `— ${label} —`}</option>
+        {options.map(o => (
+          <option key={o.value ?? o} value={o.value ?? o}>{o.label ?? o}</option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
+const CARBURANT_OPTIONS = ['Essence', 'Diesel', 'Électrique', 'Hybride', 'Hybride rechargeable', 'GPL', 'GNV', 'Hydrogène', 'Flex']
+const TRANSMISSION_OPTIONS = ['Manuelle', 'Automatique', 'Semi-automatique', 'CVT', 'Double embrayage (DSG)']
+const CARROSSERIE_OPTIONS = ['Berline', 'Break', 'SUV / 4x4', 'Coupé', 'Cabriolet / Roadster', 'Monospace', 'Citadine', 'Utilitaire', 'Pick-up', 'Familiale']
 
 /* ── Upload photos ─────────────────────────────────────────── */
 function PhotoUploader({ photos, setPhotos, userId, disabled }) {
@@ -467,15 +497,15 @@ export default function LivreDePolice() {
   }
 
   const optionalFields = [
-    { key: 'annee',        label: 'Année',           placeholder: '2020',             type: 'number' },
-    { key: 'km',           label: 'Kilométrage (km)', placeholder: '45000',           type: 'number' },
-    { key: 'carburant',    label: 'Carburant',        placeholder: 'Diesel',           type: 'text'   },
-    { key: 'puissance',    label: 'Puissance (ch)',   placeholder: '130',              type: 'number' },
-    { key: 'cylindree',    label: 'Cylindrée',       placeholder: '1.5L',             type: 'text'   },
-    { key: 'carrosserie',  label: 'Carrosserie',      placeholder: 'Berline',          type: 'text'   },
-    { key: 'couleur',      label: 'Couleur',          placeholder: 'Gris Nardo',       type: 'text'   },
-    { key: 'transmission', label: 'Transmission',     placeholder: 'Automatique',      type: 'text'   },
-    { key: 'vin',          label: 'Numéro VIN',       placeholder: 'WBA3A5C50CF256521',type: 'text', fullWidth: true },
+    { key: 'annee',        label: 'Année',            placeholder: '2020',              type: 'number' },
+    { key: 'km',           label: 'Kilométrage (km)', placeholder: '45000',             type: 'number' },
+    { key: 'carburant',    label: 'Carburant',        type: 'select', options: CARBURANT_OPTIONS },
+    { key: 'carrosserie',  label: 'Carrosserie',      type: 'select', options: CARROSSERIE_OPTIONS },
+    { key: 'transmission', label: 'Transmission',     type: 'select', options: TRANSMISSION_OPTIONS },
+    { key: 'puissance',    label: 'Puissance (ch)',   placeholder: '130',               type: 'number' },
+    { key: 'cylindree',    label: 'Cylindrée',        placeholder: '1.5L',              type: 'text'   },
+    { key: 'couleur',      label: 'Couleur',          placeholder: 'Gris Nardo',        type: 'text'   },
+    { key: 'vin',          label: 'Numéro VIN',       placeholder: 'WBA3A5C50CF256521', type: 'text', fullWidth: true },
   ]
 
   return (
@@ -760,18 +790,29 @@ export default function LivreDePolice() {
                   <div style={{ padding: '14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, borderTop: '1px solid #e2e8f0' }}>
                     {optionalFields.map(f => (
                       <div key={f.key} style={f.fullWidth ? { gridColumn: '1 / -1' } : {}}>
-                        <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', display: 'block', marginBottom: 4 }}>
-                          {f.label}
-                        </label>
-                        <input type={f.type} placeholder={f.placeholder} value={addForm[f.key] ?? ''}
-                          onChange={e => {
-                            let val = e.target.value
-                            if (f.key === 'vin') val = val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 17)
-                            setAddForm(p => ({ ...p, [f.key]: val }))
-                          }}
-                          className="sea-input" maxLength={f.key === 'vin' ? 17 : undefined}
-                          style={{ fontFamily: f.key === 'vin' ? 'monospace' : undefined }}
-                        />
+                        {f.type === 'select' ? (
+                          <SeaSelect
+                            label={f.label}
+                            value={addForm[f.key]}
+                            onChange={val => setAddForm(p => ({ ...p, [f.key]: val }))}
+                            options={f.options}
+                          />
+                        ) : (
+                          <>
+                            <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', display: 'block', marginBottom: 4 }}>
+                              {f.label}
+                            </label>
+                            <input type={f.type} placeholder={f.placeholder} value={addForm[f.key] ?? ''}
+                              onChange={e => {
+                                let val = e.target.value
+                                if (f.key === 'vin') val = val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 17)
+                                setAddForm(p => ({ ...p, [f.key]: val }))
+                              }}
+                              className="sea-input" maxLength={f.key === 'vin' ? 17 : undefined}
+                              style={{ fontFamily: f.key === 'vin' ? 'monospace' : undefined }}
+                            />
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -916,19 +957,30 @@ export default function LivreDePolice() {
                   <div style={{ padding: '14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, borderTop: '1px solid #e2e8f0' }}>
                     {optionalFields.map(f => (
                       <div key={f.key} style={f.fullWidth ? { gridColumn: '1 / -1' } : {}}>
-                        <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', display: 'block', marginBottom: 4 }}>
-                          {f.label}
-                        </label>
-                        <input type={f.type} placeholder={f.placeholder} value={editForm[f.key] ?? ''}
-                          onChange={e => {
-                            let val = e.target.value
-                            if (f.key === 'vin') val = val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 17)
-                            setEditForm(p => ({ ...p, [f.key]: val }))
-                          }}
-                          className="sea-input"
-                          maxLength={f.key === 'vin' ? 17 : undefined}
-                          style={{ fontFamily: f.key === 'vin' ? 'monospace' : undefined }}
-                        />
+                        {f.type === 'select' ? (
+                          <SeaSelect
+                            label={f.label}
+                            value={editForm[f.key]}
+                            onChange={val => setEditForm(p => ({ ...p, [f.key]: val }))}
+                            options={f.options}
+                          />
+                        ) : (
+                          <>
+                            <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', display: 'block', marginBottom: 4 }}>
+                              {f.label}
+                            </label>
+                            <input type={f.type} placeholder={f.placeholder} value={editForm[f.key] ?? ''}
+                              onChange={e => {
+                                let val = e.target.value
+                                if (f.key === 'vin') val = val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 17)
+                                setEditForm(p => ({ ...p, [f.key]: val }))
+                              }}
+                              className="sea-input"
+                              maxLength={f.key === 'vin' ? 17 : undefined}
+                              style={{ fontFamily: f.key === 'vin' ? 'monospace' : undefined }}
+                            />
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>
